@@ -25,7 +25,6 @@ final class PixieDashboardController extends AbstractController
 
         // summary from config
         $conf   = $ctx->config;
-        $source = $conf->getSource();
         $pixieFile = $this->pixie->getPixieFilename($pixieCode);
         $dbSize = is_file($pixieFile) ? filesize($pixieFile) : 0;
 
@@ -39,8 +38,9 @@ final class PixieDashboardController extends AbstractController
 
         return [
             'pixieCode'   => $pixieCode,
+            'config'        => $conf,
             'conf'        => $conf,
-            'source'      => $source,
+            'source'      => $conf->source,
             'dbFile'      => $pixieFile,
             'dbSize'      => $dbSize,
             'rowsByCore'  => $rowsByCore,

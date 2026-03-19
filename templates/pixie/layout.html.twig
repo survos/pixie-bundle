@@ -5,7 +5,6 @@
 
 {% block stylesheets %}
     <link rel="stylesheet" type="text/css" href="{{ asset('bundles/survospixie/style.css') }}" ></link>
-    <link rel="stylesheet" type="text/css" href="{{ asset('bundles/survosapigrid/style.css') }}" ></link>
     <link rel="stylesheet" type="text/css" href="{{ asset('bundles/survosbootstrap/bootstrap/style.css') }}">
     {{ parent() }}
     <style>
@@ -25,26 +24,28 @@
         itemKey: item.key|default(null)
     }
     %}
-    {{ component('menu', {
-        caller: _self,
-        type: NAVBAR_MENU,
-        wrapperClass: 'fw-bold py-3 mb-4 text-primary d-print-none',
-        options: options
-    }) }}
+    @todo: menu
+{#    {{ component('menu', {#}
+{#        caller: _self,#}
+{#        type: NAVBAR_MENU,#}
+{#        wrapperClass: 'fw-bold py-3 mb-4 text-primary d-print-none',#}
+{#        options: options#}
+{#    }) }}#}
 {% endblock %}
 
 {% block page_header %}
     <div>
-                {{ component('menu', {
-                    caller: _self,
-                    type: PAGE_MENU,
-                    wrapperClass: 'fw-bold py-3 mb-4 text-primary d-print-none',
-                    options: {
-                        pixieCode: pixieCode,
-                        tableName: tableName|default(null),
-                        itemKey: item.key|default(null)
-                    }
-                }) }}
+        @todo: inject menu types in twig, add whatever menu we are going to use.
+{#                {{ component('tabler:menu', {#}
+{#                    caller: _self,#}
+{#                    type: 'PAGE_ACTIONS',#}
+{#                    wrapperClass: 'fw-bold py-3 mb-4 text-primary d-print-none',#}
+{#                    options: {#}
+{#                        pixieCode: pixieCode,#}
+{#                        tableName: tableName|default(null),#}
+{#                        itemKey: item.key|default(null)#}
+{#                    }#}
+{#                }) }}#}
 
 {#    at a minimum: https://getbootstrap.com/docs/5.0/components/navbar/#}
 

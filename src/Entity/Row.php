@@ -1,10 +1,9 @@
 <?php
+declare(strict_types=1);
 
 namespace Survos\PixieBundle\Entity;
 
 use ApiPlatform\Metadata\ApiProperty;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Survos\PixieBundle\Contract\TranslatableByCodeInterface;
@@ -14,182 +13,232 @@ use Survos\StateBundle\Traits\MarkingTrait;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: RowRepository::class)]
-#[ORM\UniqueConstraint(name: 'uniq_row_core_idwithin', columns: ['core_id','id_within_core'])]
+#[ORM\Table(name: 'row')]
+#[ORM\UniqueConstraint(name: 'uniq_row_core_idwithin', columns: ['core_id', 'id_within_core'])]
 #[ORM\Index(name: 'row_core', columns: ['core_id'])]
-//#[ORM\Index(name: 'row_core_label', columns: ['core_id','label'])]
-//
-//#[ORM\Index(name: 'row_core_code', columns: ['core_id','id'])]
-#[ORM\Index(name: 'row_core_marking', columns: ['core_id','marking'])] // optional but handy for workflows
+#[ORM\Index(name: 'row_core_marking', columns: ['core_id', 'marking'])]
 #[Groups(['row.read'])]
-class Row implements
-//    TranslatableByCodeInterface, // this should be handled in babel-bundle now!
-    MarkingInterface, \Stringable
+class Row implements MarkingInterface, \Stringable, TranslatableByCodeInterface
 {
     use MarkingTrait;
-//    use TranslatableFieldsByCode;
 
+    /**
+     * Runtime-only resolved strings for this request/run.
+     * Populated by a postLoad listener or indexing resolver.
+     *
+     * Semantics:
+     * - key exists => resolved value (non-empty string)
+     * - key missing => not resolved; fall back to source text
+     *
+     * @var array<string,string>
+     */
+    private array $resolved = [];
 
-// NOT mapped: transient resolved strings for this request/run, resolved in PixiePostLoadListener::class
-    private array $_resolved = [];
+    /**
+     * Persisted pointers to Babel Str.code values:
+     *   field => str_code
+     *
+     * @var array<string,string>|null
+     */
+    #[ApiProperty(description: 'Pointers: field => Babel Str.code')]
+    #[ORM\Column(name: 'str_codes', type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    public ?array $strCodes = null;
 
-    // Codes for all translatable fields (uniform!)
-    #[ApiProperty(description: 'Codes for all translatable fields (uniform!)')]
-    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
-    private ?array $t_codes = null;
+    #[ApiProperty(description: 'The raw label from which translations are derived. Not translated.')]
+    #[ORM\Column(name: 'raw_label', type: Types::STRING)]
+    public string $rawLabel = '';
 
-    // Virtuals for common fields (others are accessed via $row->translated('field'))
-    #[ApiProperty(description: 'label used when this row is presented in a list (e.g. facet)')]
-    public string $label       { get => $this->translated('label'); }
-
-    #[ApiProperty(description: 'The raw label from which the translation code comes from.  Might not be unique.  Not translated.')]
-    #[ORM\Column(type: Types::STRING)]
-    public string $rawLabel;
-
-    #[ApiProperty(description: 'shortcut to description')]
-    public string $description { get => $this->translated('description'); }
-
-    // ——— API used by importer / normalizers ———
-    public function bindTranslatableCode(string $field, string $code): void
-    {
-        $this->t_codes ??= [];
-        $this->t_codes[$field] = $code;
-    }
-
-    /** field => code (used by the listener) */
-    public function getStrCodeMap(): array
-    {
-        return $this->t_codes ?? [];
-    }
-
-    // ——— called by the postLoad listener ———
-    public function __setResolvedString(string $field, ?string $value): void
-    {
-        $this->_resolved[$field] = $value ?? '';
-    }
-
-    protected function translated(string $field): string
-    {
-        return $this->_resolved[$field] ?? '';
-    }
-
-    #[ORM\ManyToOne(inversedBy: 'rows')] # , cascade: ['persist', 'remove'])]
+    #[ORM\ManyToOne(inversedBy: 'rows')]
     #[ORM\JoinColumn(nullable: false)]
     public Core $core;
 
+    #[ApiProperty(description: 'Normalized object that Meilisearch indexes (key/value pairs EXCEPT translatable strings)')]
     #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
-    #[ApiProperty(description: 'the normalized object that meilisearch indexes, all of the important data in key/value pairs EXCEPT translatable strings')]
     public ?array $data = null;
 
-    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
-    #[ApiProperty(description: 'the raw data for debugging')]
-    public ?array $rawData  = null;
+    #[ApiProperty(description: 'Raw source data for debugging')]
+    #[ORM\Column(name: 'raw_data', type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    public ?array $rawData = null;
 
-    /**
-     * keyed by locale, then by translatable field name, e.g. en.label, en.description
-     *
-     * @var array|null
-     */
-    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
-    public ?array $translations = null;
-
-    /**
-     * @var Collection<int, OriginalImage>
-     */
-    #[ORM\OneToMany(targetEntity: OriginalImage::class, mappedBy: 'row', orphanRemoval: true)]
-    #[Groups(['row.images'])]
-    public Collection $images;
-
+    #[ApiProperty(description: 'Original JSON record before normalization/cleanup. Debug-only.')]
     #[ORM\Column(nullable: true)]
-    #[ApiProperty(description: 'The original json data, before any normalization or cleanup.  Debug only, should not be read in production')]
     public ?array $raw = null;
 
-    #[ORM\Column(type: Types::STRING)]
-//    #[Assert\NotNull()]
+    #[ORM\Column(name: 'id_within_core', type: Types::STRING)]
     #[Groups(['row.read'])]
-    private(set) ?string $idWithinCore;
+    public ?string $idWithinCore = null;
 
+    #[ORM\Id]
     #[ORM\Column(type: Types::STRING)]
-    #[ORM\Id()]
     #[Groups(['row.read'])]
-    #[ApiProperty(description: 'single key, composite of core.code - row.idWithinCore')]
-    private(set) ?string $id;
+    #[ApiProperty(description: 'Single key: core.code - idWithinCore')]
+    public ?string $id = null;
 
-    public static function RowIdentifier(Core $core, string $id): string
+    // Unmapped virtuals (shortcuts)
+    #[ApiProperty(description: 'Translated label shortcut')]
+    public string $label { get => $this->translated('label'); }
+
+    #[ApiProperty(description: 'Translated description shortcut')]
+    public string $description { get => $this->translated('description'); }
+
+    public function __construct(?Core $core = null, ?string $idWithinCore = null)
     {
-        return $core->code . '-' . $id;
+        if ($core && $idWithinCore !== null) {
+            $this->core = $core;
+            $this->idWithinCore = $idWithinCore;
+            $this->id = self::rowIdentifier($core, $idWithinCore);
+
+            // legacy counter – keep if you still rely on it
+            $core->rowCount++;
+        }
     }
 
-
-    public function __construct(
-        ?Core $core=null,
-        ?string $id=null)
+    public static function rowIdentifier(Core $core, string $idWithinCore): string
     {
-        $this->core = $core;
-        $this->idWithinCore = $id;
-        $this->id = self::RowIdentifier($core, $id);
-//        $this->initId(id: Row::RowIdentifier($core, $idWithinCore));
-//        $core->addRow($this); // if this is too slow, update rowCount here.
-        $this->core = $core;
-        $core->rowCount++;
-
-        $this->images = new ArrayCollection();
+        return $core->code . '-' . $idWithinCore;
     }
 
-    public function getRawValue(string $key, mixed $default=null, bool $throwErrorIfMissing = true): mixed
+    public function __toString(): string
     {
-        return $this->data[$key] ?? $default;
+        return (string) ($this->id ?? '');
     }
 
-    public function __toString() { return $this->id; }
+    // ------------------------------------------------------------------
+    // Str code pointers (populated during ingest)
+    // ------------------------------------------------------------------
 
-    /**
-     *
-     * Someday we may move images to be handled in postload, but for now we'll keep them as a relation.
-     *
-     * @return Collection<int, OriginalImage>
-     */
-    public function getImages(): Collection
+    public function bindStrCode(string $field, string $code): void
     {
-        return $this->images;
-    }
+        $field = trim($field);
+        $code  = trim($code);
 
-    public function addImage(OriginalImage $image): static
-    {
-        if (!$this->images->contains($image)) {
-            $this->images->add($image);
-            $image->setRow($this);
+        if ($field === '' || $code === '') {
+            return;
         }
 
-        return $this;
+        $this->strCodes ??= [];
+        $this->strCodes[$field] = $code;
     }
 
-    public function removeImage(OriginalImage $image): static
+    /**
+     * @return array<string,string> field => str_code
+     */
+    public function getStrCodeMap(): array
     {
-        if ($this->images->removeElement($image)) {
-            // set the owning side to null (unless already changed)
-            if ($image->getRow() === $this) {
-                $image->setRow(null);
+        $map = $this->strCodes ?? [];
+        if ($map === []) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($map as $field => $code) {
+            $field = trim((string) $field);
+            $code  = trim((string) $code);
+            if ($field !== '' && $code !== '') {
+                $out[$field] = $code;
             }
         }
 
-        return $this;
+        return $out;
     }
 
-    public function getOwner(): Owner
+    // ------------------------------------------------------------------
+    // Runtime translation resolution (set by hydrator/resolver)
+    // ------------------------------------------------------------------
+
+    public function clearResolved(): void
     {
-        return $this->core->owner;
-
+        $this->resolved = [];
     }
 
-    public function setLabel(string $label): static
+    /**
+     * @return array<string,string>
+     */
+    public function getResolvedMap(): array
+    {
+        return $this->resolved;
+    }
+
+    /**
+     * Hydrator should call this for each translated field.
+     *
+     * - Null/empty value means “do not set” so fallback continues to work.
+     */
+    public function setResolvedTranslation(string $field, ?string $value): void
+    {
+        $field = trim($field);
+        if ($field === '') {
+            return;
+        }
+
+        $value = $value !== null ? trim($value) : '';
+        if ($value === '') {
+            // Do not overwrite fallback behavior
+            unset($this->resolved[$field]);
+            return;
+        }
+
+        $this->resolved[$field] = $value;
+    }
+
+    /**
+     * Convenience alias used by hooks and templates.
+     */
+    public function t(string $field): string
+    {
+        return $this->translated($field);
+    }
+
+    // ------------------------------------------------------------------
+    // Ingest helpers
+    // ------------------------------------------------------------------
+
+    public function setLabel(string $label): self
     {
         $this->rawLabel = $label;
         return $this;
     }
 
-    public function setData(array $data): static
+    public function setData(array $data): self
     {
         $this->data = $data;
         return $this;
+    }
+
+    // ------------------------------------------------------------------
+    // Translation-aware accessors used by virtual properties
+    // ------------------------------------------------------------------
+
+    /**
+     * Return translated value if present; otherwise fall back to source text for that field.
+     */
+    protected function translated(string $field): string
+    {
+        $field = trim($field);
+        if ($field === '') {
+            return '';
+        }
+
+        if (isset($this->resolved[$field]) && $this->resolved[$field] !== '') {
+            return $this->resolved[$field];
+        }
+
+        return $this->getSourceTextForField($field);
+    }
+
+    /**
+     * What text did we hash/ensure as the source for this field?
+     * This should match what PixieBabelEnsureCommand extracts.
+     */
+    public function getSourceTextForField(string $field): string
+    {
+        if ($field === 'label') {
+            return trim((string) ($this->rawLabel ?? ''));
+        }
+
+        $data = $this->data ?? [];
+        $val = $data[$field] ?? '';
+
+        return is_string($val) ? trim($val) : '';
     }
 }

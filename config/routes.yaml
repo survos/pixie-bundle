@@ -1,5 +1,4 @@
 survos_pixie:
-  prefix: /pixie
   type: attribute
   resource:
     path: '@SurvosPixieBundle/src/Controller/'

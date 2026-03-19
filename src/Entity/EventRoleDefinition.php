@@ -7,7 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Survos\PixieBundle\Repository\EventRoleDefinitionRepository;
 
 #[ORM\Entity(repositoryClass: EventRoleDefinitionRepository::class)]
-#[ORM\Table(name: 'pixie_event_role_definition')]
+#[ORM\Table(name: 'event_role_def')]
 #[ORM\UniqueConstraint(name: 'uniq_event_role', columns: ['event_definition_id','role_code'])]
 class EventRoleDefinition
 {

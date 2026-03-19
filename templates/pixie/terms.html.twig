@@ -1,0 +1,37 @@
+{% extends '@SurvosPixie/base.html.twig' %}
+
+{% block body %}
+    <h1>Terms: {{ pixieCode }}</h1>
+
+    {% if sets is empty %}
+        <p>No term sets found. Run <code>pixie:terms:extract</code> then <code>pixie:terms:ingest</code>.</p>
+        {% return %}
+    {% endif %}
+
+    <ul class="nav nav-tabs mb-3">
+        {% for s in sets %}
+            <li class="nav-item">
+                <a class="nav-link {{ s.id == setId ? 'active' : '' }}"
+                   href="{{ path('pixie_terms', {pixieCode: pixieCode, setId: s.id}) }}">
+                    {{ s.id }}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <twig:simple_datatables
+        perPage="20"
+        :caller="_self"
+        :columns="columns"
+        :data="terms"
+    >
+        <twig:block name="label">
+            {# Term has a property hook 'label' that returns translated label if resolver ran #}
+            {{ row.label }}
+        </twig:block>
+
+        <twig:block name="count">
+            {{ row.count ?? '' }}
+        </twig:block>
+    </twig:simple_datatables>
+{% endblock %}

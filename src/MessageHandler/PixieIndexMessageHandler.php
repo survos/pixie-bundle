@@ -8,7 +8,6 @@ use Survos\PixieBundle\Message\PixieIndexMessage;
 use Survos\PixieBundle\Service\PixieDocumentProjector;
 use Survos\PixieBundle\Service\PixieService;
 use Survos\PixieBundle\Service\MeiliIndexer;
-use Survos\PixieBundle\Util\IndexNameResolver;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 
 #[AsMessageHandler]
@@ -17,7 +16,7 @@ final class PixieIndexMessageHandler
     public function __construct(
         private readonly PixieService $pixie,
         private readonly PixieDocumentProjector $projector,
-        private readonly MeiliIndexer $indexer
+        private readonly MeiliIndexer $indexer,
     ) {}
 
     public function __invoke(PixieIndexMessage $m): void
@@ -26,13 +25,18 @@ final class PixieIndexMessageHandler
         $owner = $ctx->ownerRef;
         $core  = $this->pixie->getCore($m->core, $owner);
 
-        $rowId = Row::RowIdentifier($core, $m->idWithinCore);
+        $rowId = Row::rowIdentifier($core, $m->idWithinCore);
         /** @var Row|null $row */
-        $row   = $ctx->find(Row::class, $rowId);
-        if (!$row) return;
+        $row = $ctx->find(Row::class, $rowId);
+        if (!$row) {
+            return;
+        }
 
-        $doc   = $this->projector->project($ctx, $row, $m->locale);
-        $index = IndexNameResolver::name($m->pixieCode, $m->core, $m->locale);
+        // Project localized doc
+        $doc = $this->projector->project($ctx, $row, $m->locale);
+
+        // Family index: pixie + locale (core is a field inside the document)
+        $index = $m->pixieCode . '_' . strtolower($m->locale);
 
         $this->indexer->indexDocs($index, [$doc]);
     }

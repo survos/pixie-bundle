@@ -5,7 +5,7 @@ namespace Survos\PixieBundle\Import\Persist;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Survos\PixieBundle\Entity\Owner;
+use Survos\PixieBundle\Entity\Inst;
 use Survos\PixieBundle\Entity\Row;
 use Survos\PixieBundle\Import\Row\RowPayload;
 use Survos\PixieBundle\Service\PixieService;
@@ -19,7 +19,7 @@ final class RowWriter
         private readonly LoggerInterface $logger,
     ) {}
 
-    public function upsert(\Survos\PixieBundle\Model\PixieContext $ctx, Owner $owner, RowPayload $p): Row
+    public function upsert(\Survos\PixieBundle\Model\PixieContext $ctx, Inst $inst, RowPayload $p): Row
     {
         $core  = $this->pixie->getCore($p->core, $owner);
         $rowId = Row::RowIdentifier($core, $p->idWithinCore);

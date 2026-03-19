@@ -3,72 +3,78 @@ declare(strict_types=1);
 
 namespace Survos\PixieBundle\Service;
 
-use Meilisearch\Client;
+use Psr\Log\LoggerInterface;
+use Survos\MeiliBundle\Service\IndexNameResolver as MeiliIndexNameResolver;
 use Survos\MeiliBundle\Service\MeiliService;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
-/**
- * Minimal Meili indexer for Pixie: create/index/get settings.
- * Constructor args are DI-injected (no direct env reads here).
- *
- * By default we read from env via DI attributes:
- *  - MEILI_URL
- *  - MEILI_MASTER_KEY (nullable)
- *
- * You can also bind these in services.yaml instead of env vars.
- */
 final class MeiliIndexer
 {
-    private Client $client;
-
     public function __construct(
-        private MeiliService $meiliService,
-        #[Autowire(env: 'MEILI_SERVER')]
-        string $url,
-        #[Autowire(env: 'MEILI_MASTER_KEY')]
-        ?string $key = null,
-    ) {
-        $this->client = new Client($url, $key);
-    }
+        private readonly MeiliService $meili,
+        private readonly MeiliSettingsBuilder $settingsBuilder,
+        private readonly MeiliIndexNameResolver $indexNames,
+        private readonly ?LoggerInterface $logger = null,
+    ) {}
 
-    public function resolveIndexName(string $pixieCode, string $locale): string
+    /**
+     * Build settings payload (pure; no network).
+     */
+    public function buildSettings(string $baseName, ?string $core = null): array
     {
-        if (!$this->meiliService) {
-            throw new \Exception('Meili service is not installed');
-        }
-        return strtolower(sprintf('%spx_%s_%s', $this->meiliService->getPrefix(), $pixieCode, $locale));
-    }
-
-
-    public function client(): Client
-    {
-        return $this->client;
-    }
-
-    public function ensureIndex(string $indexName, string $primaryKey = 'id'): void
-    {
-        $this->client->createIndex($indexName, ['primaryKey' => $primaryKey]);
-    }
-
-    /** @return array<string,mixed>|null */
-    public function getSettings(string $indexName): ?array
-    {
-        try {
-            return $this->client->index($indexName)->getSettings();
-        } catch (\Throwable) {
-            return null;
-        }
+        return $this->settingsBuilder->build($baseName, $core);
     }
 
     /**
-     * @param list<array<string,mixed>> $docs
+     * Enqueue index creation (if needed) + enqueue updateSettings.
+     * Never waits; safe for high-throughput pipelines.
+     *
+     * Returns the resolved UID (prefix applied).
      */
-    public function indexDocs(string $indexName, array $docs, string $primaryKey = 'id'): void
+    public function ensureIndexReady(
+        string $baseName,
+        ?string $locale,
+        ?string $core = null,
+        string $primaryKey = 'id',
+        ?string $fallbackSourceLocale = null,
+    ): string {
+        $fallbackSourceLocale ??= 'en';
+
+        $isMlFor = $this->indexNames->isMultiLingualFor($baseName, $fallbackSourceLocale);
+        $uid = $this->indexNames->uidFor($baseName, $locale, $isMlFor);
+
+        // This should enqueue createIndex if missing (server task), and return the endpoint.
+        $index = $this->meili->getOrCreateIndex($uid, $primaryKey, autoCreate: true, wait: false);
+
+        $settings = $this->settingsBuilder->build($baseName, $core);
+
+        try {
+            // Enqueue settings update. Do not wait.
+            $index->updateSettings($settings);
+        } catch (\Throwable $e) {
+            $this->logger?->error('Failed applying Meili settings', [
+                'base' => $baseName,
+                'locale' => $locale,
+                'core' => $core,
+                'uid' => $uid,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+
+        return $uid;
+    }
+
+    /**
+     * Enqueue addDocuments. Do not wait.
+     *
+     * @param array<int,array<string,mixed>> $docs
+     */
+    public function indexDocs(string $uid, array $docs): void
     {
-        if (!$docs) {
+        if ($docs === []) {
             return;
         }
-        $task = $this->client->index($indexName)->updateDocuments($docs, $primaryKey);
-        $wait = $this->client->waitForTask($task['taskUid']);
+        $index = $this->meili->getIndexEndpoint($uid);
+        $index->addDocuments($docs);
     }
 }

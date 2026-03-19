@@ -3,11 +3,11 @@
 
 namespace Survos\PixieBundle\Entity;
 
+// @todo: AI: if we're going to keep these, they need to be in the pixie namespace
 use App\Entity\IdInterface;
 use App\Entity\ImportDataInterface;
-use App\Entity\TranslatableFieldsProxyInterface;
 
-interface InstanceInterface extends IdInterface, TranslatableFieldsProxyInterface, ImportDataInterface
+interface InstanceInterface # extends IdInterface, TranslatableFieldsProxyInterface, ImportDataInterface
 {
     public function getShortClass(): string;
 

@@ -25,7 +25,7 @@ Prepare only (create missing StrTranslation rows):
     bin/console pixie:translate WAM --target=es|fr --batch=500
 
 Prepare + dispatch (apply already-available translations; queue the rest):
-    
+
     bin/console pixie:translate WAM --target=es|fr --dispatch --transport=async
 
 Only check current status:
@@ -38,7 +38,6 @@ final class PixieTranslateCommand extends Command
 {
     public function __construct(
         private PixieService $pixieService,
-//        private TranslationBatcher $batcher,
         #[Autowire('%kernel.enabled_locales%')] private array $supportedLocales,
     ) {
         parent::__construct();

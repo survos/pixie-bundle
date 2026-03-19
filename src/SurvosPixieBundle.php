@@ -4,36 +4,50 @@
 
 namespace Survos\PixieBundle;
 
+use Doctrine\DBAL\Schema\Metadata\MetadataProvider;
 use Survos\CoreBundle\Traits\HasAssetMapperTrait;
 use Survos\MeiliBundle\Service\MeiliService;
 use Survos\PixieBundle\Command\IterateCommand;
+use Survos\PixieBundle\Command\PixieBabelBrowseCommand;
+use Survos\PixieBundle\Command\PixieBabelEnsureCommand;
+use Survos\PixieBundle\Command\PixieBabelSyncCommand;
+use Survos\PixieBundle\Command\PixieBrowseCommand;
 use Survos\PixieBundle\Command\PixieExportCommand;
+use Survos\PixieBundle\Command\PixieInfoCommand;
 use Survos\PixieBundle\Command\PixieImportCommand;
 use Survos\PixieBundle\Command\PixieIndexCommand;
-use Survos\PixieBundle\Command\PixieInjestCommand;
+use Survos\PixieBundle\Command\PixieIngestCommand;
 use Survos\PixieBundle\Command\PixieMakeCommand;
 use Survos\PixieBundle\Command\PixieMediaCommand;
 use Survos\PixieBundle\Command\PixieMeiliSettingsCommand;
 use Survos\PixieBundle\Command\PixieMigrateCommand;
 use Survos\PixieBundle\Command\PixiePrepareCommand;
 use Survos\PixieBundle\Command\PixiePrepareSimpleCommand;
+use Survos\PixieBundle\Command\PixieRowBrowseCommand;
 use Survos\PixieBundle\Command\PixieSchemaDumpCommand;
 use Survos\PixieBundle\Command\PixieSchemaSyncCommand;
 use Survos\PixieBundle\Command\PixieStatsShowCommand;
 use Survos\PixieBundle\Command\PixieSyncCommand;
 use Survos\PixieBundle\Command\PixieSyncIndexesCommand;
+use Survos\PixieBundle\Command\PixieTermsExtractCommand;
+use Survos\PixieBundle\Command\PixieTermsIngestCommand;
+use Survos\PixieBundle\Command\PixieTermsShowCommand;
 use Survos\PixieBundle\Command\PixieTranslateCommand;
+use Survos\PixieBundle\Compiler\PixieMeiliIndexPass;
 use Survos\PixieBundle\Components\DatabaseComponent;
 use Survos\PixieBundle\Components\RowComponent;
+use Survos\PixieBundle\Controller\PixieBrowseController;
 use Survos\PixieBundle\Controller\PixieController;
 use Survos\PixieBundle\Controller\PixieDashboardController;
 use Survos\PixieBundle\Controller\PixiePrinterController;
+use Survos\PixieBundle\Controller\PixieTermsController;
 use Survos\PixieBundle\Controller\SearchController;
 use Survos\PixieBundle\DataCollector\PixieDataCollector;
 use Survos\PixieBundle\Debug\TraceableStorageBox;
 use Survos\PixieBundle\Dto\Attributes\Mapper as MapperAttr;
 use Survos\PixieBundle\EventListener\CsvHeaderEventListener;
 use Survos\PixieBundle\EventListener\PixieControllerEventListener;
+use Survos\PixieBundle\EventListener\PixieEnhanceRecordListener;
 use Survos\PixieBundle\EventListener\PixiePostLoadListener;
 use Survos\PixieBundle\EventListener\TranslationRowEventListener;
 use Survos\PixieBundle\Import\Ingest\CsvIngestor;
@@ -45,36 +59,48 @@ use Survos\PixieBundle\Repository\CoreRepository;
 use Survos\PixieBundle\Repository\FieldDefinitionRepository;
 use Survos\PixieBundle\Repository\FieldRepository;
 use Survos\PixieBundle\Repository\OriginalImageRepository;
+use Survos\PixieBundle\Repository\InstRepository;
 use Survos\PixieBundle\Repository\RowRepository;
-use Survos\PixieBundle\Repository\StrRepository;
-use Survos\PixieBundle\Repository\StrTranslationRepository;
-use Survos\PixieBundle\Repository\TableRepository;
+use Survos\PixieBundle\Repository\TermRepository;
+use Survos\PixieBundle\Repository\TermSetRepository;
+use Survos\PixieBundle\Schema\SchemaProvider;
 use Survos\PixieBundle\Schema\YamlSchemaSynchronizer;
 use Survos\PixieBundle\Service\CoreService;
 use Survos\PixieBundle\Service\DtoMapper;
 use Survos\PixieBundle\Service\DtoRegistry;
+use Survos\PixieBundle\Service\Enhance\PixieEnhancer;
+use Survos\PixieBundle\Service\Enhance\PixieRenameApplier;
 use Survos\PixieBundle\Service\EventQueryService;
 use Survos\PixieBundle\Service\ImportHandler;
+use Survos\PixieBundle\Service\IndexModelResolver;
 use Survos\PixieBundle\Service\LibreTranslateService;
 use Survos\PixieBundle\Service\LocaleContext;
 use Survos\PixieBundle\Service\MeiliIndexer;
 use Survos\PixieBundle\Service\MeiliSettingsBuilder;
+use Survos\PixieBundle\Service\PixieBabelBrowser;
+use Survos\PixieBundle\Service\PixieConfigRegistry;
 use Survos\PixieBundle\Service\PixieConvertService;
 use Survos\PixieBundle\Service\PixieDocumentProjector;
 use Survos\PixieBundle\Service\PixieEntityManagerProvider;
+use Survos\PixieBundle\Service\PixieEntityMetadataProvider;
+use Survos\PixieBundle\Service\PixieImportOrchestrator;
 use Survos\PixieBundle\Service\PixieImportService;
+use Survos\PixieBundle\Service\PixieMeiliSettingsFromConfig;
+use Survos\PixieBundle\Service\PixieSchemaManager;
 use Survos\PixieBundle\Service\PixieService;
 use Survos\PixieBundle\Service\PixieTranslationService;
 use Survos\PixieBundle\Service\ReferenceService;
 use Survos\PixieBundle\Service\RelationService;
+use Survos\PixieBundle\Service\RowDocumentExpander;
 use Survos\PixieBundle\Service\RowIngestor;
+use Survos\PixieBundle\Service\RowToIndexModelMapper;
 use Survos\PixieBundle\Service\SchemaViewService;
 use Survos\PixieBundle\Service\SqlViewService;
 use Survos\PixieBundle\Service\StatsCollector;
+use Survos\PixieBundle\Service\TermCodeGenerator;
+use Survos\PixieBundle\Service\TermSpecParser;
 use Survos\PixieBundle\Service\TranslationResolver;
-use Survos\PixieBundle\StorageBox;
 use Survos\PixieBundle\Twig\TwigExtension;
-use Survos\PixieBundle\Util\IndexNameResolver;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeBuilder;
 use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
@@ -85,6 +111,7 @@ use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Twig\Environment;
 
 class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
@@ -94,6 +121,11 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
+
+        // Only register if MeiliBundle is installed
+//        if (class_exists(MeiliService::class)) {
+        $container->addCompilerPass(new PixieMeiliIndexPass());
+//        }
 
         // Autoconfigure DTO classes annotated with #[Mapper] -> tag "pixie.dto"
         $container->registerAttributeForAutoconfiguration(
@@ -135,13 +167,13 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
 
         // repos are not public, but do need the tag
         foreach ([CoreRepository::class,
+                     TermSetRepository::class,
+                     TermRepository::class,
                      FieldRepository::class,
                      FieldDefinitionRepository::class,
-                     TableRepository::class,
-                     StrRepository::class,
-                     StrTranslationRepository::class,
                      OriginalImageRepository::class,
                      RowRepository::class,
+                     InstRepository::class,
                      CoreDefinitionRepository::class] as $class) {
             $builder->register($class)
                 ->setAutowired(true)
@@ -153,10 +185,24 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
 
         // Core services
         foreach ([
+                     MetadataProvider::class,
+                     IndexModelResolver::class,
+                     RowToIndexModelMapper::class,
+                     SchemaProvider::class,
+                     PixieSchemaManager::class,
+                     PixieEntityMetadataProvider::class,
+                     TermSpecParser::class,
+                     TermCodeGenerator::class,
+                     PixieMeiliSettingsFromConfig::class,
+                     PixieConfigRegistry::class,
+                     PixieBabelBrowser::class,
+                     PixieImportOrchestrator::class,
+                     PixieEnhancer::class,
+                     PixieEnhanceRecordListener::class,
+                     PixieRenameApplier::class,
                      StatsCollector::class,
                      PixieService::class,
                      PixieImportService::class,
-                     IndexNameResolver::class,
                      PixieEntityManagerProvider::class,
                      CoreService::class,
                      LocaleContext::class,
@@ -165,6 +211,7 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
                      CsvIngestor::class,
                      YamlSchemaSynchronizer::class,
                      PixieDocumentProjector::class,
+                     RowDocumentExpander::class,
                      EventQueryService::class,
                      TranslationResolver::class,
                      PixieTranslationService::class,
@@ -186,6 +233,14 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
                 ->setAutoconfigured(true)
                 ->setPublic(true);
         }
+
+
+        $connectionName = $config['babel']['connection'] ?? 'default';
+        $serviceId = sprintf('doctrine.dbal.%s_connection', $connectionName);
+
+        $builder->getDefinition(TranslationResolver::class)
+            ->setArgument('$connection', new Reference($serviceId));
+
         // PixieService args
         $builder->getDefinition(PixieImportService::class)
             ->setArgument('$logger', new Reference('logger'))
@@ -218,7 +273,13 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
                 ->setPublic(false);
         }
 
-        foreach ([PixieController::class, PixiePrinterController::class, PixieDashboardController::class] as $controllerClass) {
+        foreach ([PixieBrowseController::class,
+                     PixieTermsController::class,
+                     PixiePrinterController::class,
+                     PixieDashboardController::class,
+                     PixieController::class
+                 ] as $controllerClass) {
+//        foreach ([PixieController::class, PixiePrinterController::class, PixieDashboardController::class] as $controllerClass) {
             // Controllers
             $builder->autowire($controllerClass)
                 ->addTag('controller.service_arguments')
@@ -240,47 +301,70 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
             ->addTag('data_collector', ['template' => '@SurvosPixie/DataCollector/pixie_debug_profile.html.twig'])
             ->setPublic(true);
 
-        // StorageBox helpers
-        foreach ([StorageBox::class, TraceableStorageBox::class] as $storageBoxClass) {
-            $builder->register($storageBoxClass)
-                ->setAutowired(true)
-                ->setAutoconfigured(true)
-                ->setArgument('$logger', new Reference('logger'))
-                ->setPublic(true);
-        }
-
+//        // StorageBox helpers
+//        foreach ([StorageBox::class, TraceableStorageBox::class] as $storageBoxClass) {
+//            $builder->register($storageBoxClass)
+//                ->setAutowired(true)
+//                ->setAutoconfigured(true)
+//                ->setArgument('$logger', new Reference('logger'))
+//                ->setPublic(true);
+//        }
+//
         // Event listeners
-        foreach ([TranslationRowEventListener::class, CsvHeaderEventListener::class, PixiePostLoadListener::class, PixieControllerEventListener::class] as $listener) {
+        foreach ([CsvHeaderEventListener::class, PixiePostLoadListener::class, PixieControllerEventListener::class] as $listener) {
             $builder->register($listener)
                 ->setAutowired(true)
                 ->setAutoconfigured(true)
                 ->setPublic(true);
         }
 
+        // Abstract base commands — must be registered so #[Required] setters are called on subclasses
+        $builder->register(\Survos\PixieBundle\Command\PixieCommand::class)
+            ->setAbstract(true)
+            ->setAutowired(true)
+            ->setAutoconfigured(true);
+
         // Commands
         foreach ([
+                     PixieTermsShowCommand::class,
+                     PixieImportCommand::class,
+                     PixieTermsExtractCommand::class,
+                     PixieTermsIngestCommand::class,
+                     PixieBabelEnsureCommand::class,
+                     PixieBabelSyncCommand::class,
+                     PixieBabelBrowseCommand::class,
                      PixieSyncIndexesCommand::class,
                      PixieStatsShowCommand::class,
                      PixieMeiliSettingsCommand::class,
                      PixieMigrateCommand::class,
+                     PixieInfoCommand::class,
                      PixieMediaCommand::class,
                      PixieTranslateCommand::class,
+                     PixieBrowseCommand::class,
                      PixiePrepareSimpleCommand::class,
 //                     PixiePrepareCommand::class,
-                     PixieImportCommand::class,
+//                     PixieImportCommand::class,
                      PixieExportCommand::class,
-                     PixieInjestCommand::class,
+                     PixieIngestCommand::class,
                      PixieSchemaDumpCommand::class,
                      PixieSchemaSyncCommand::class,
                      IterateCommand::class,
                      PixieIndexCommand::class,
                      PixieSyncCommand::class,
+                     PixieRowBrowseCommand::class,
                      PixieMakeCommand::class,
                  ] as $commandClass) {
             $builder->autowire($commandClass)
                 ->setAutoconfigured(true)
                 ->addTag('console.command');
         }
+
+
+        $builder->register(PixieConfigRegistry::class)
+            ->setArgument('$denormalizer', new Reference(DenormalizerInterface::class))
+            ->setArgument('$pixiesConfig', $config['pixies'] ?? []);
+
+
     }
 
     public function configure(DefinitionConfigurator $definition): void
@@ -290,7 +374,10 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
             ->children()
             // Use a filename extension compatible with your PixieService expectation
             ->scalarNode('extension')->defaultValue('db')->info("pixie DB filename extension, e.g. 'db'")->end()
-            ->scalarNode('db_dir')->defaultValue('pixie')->info("directory for pixie db files")->end()
+            ->scalarNode('db_dir')
+                ->defaultValue('%env(default::APP_DATA_DIR)%/pixie')
+                ->info("Directory for pixie SQLite DB files. Defaults to APP_DATA_DIR/pixie. Set to a shared path (NFS, S3 mount, Bunny) so md, mus, ssai, zm can all read the same files.")
+            ->end()
             ->scalarNode('data_root')->defaultValue('data')->info("root for csv/json data")->end()
             ->scalarNode('transport')->defaultNull()->info("default messenger transport for iterate")->end()
             ->booleanNode('debug')->defaultFalse()->info("turn on profiler hooks (kernel.debug?)")->end()
@@ -350,6 +437,7 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
             ->end();
 
         $this->addTablesSection($pixieRoot);
+        $this->addBabelSection($pixieRoot);
         $this->addSourceSection($pixieRoot);
     }
 
@@ -395,7 +483,7 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
             ->scalarNode('description')->end()
             ->scalarNode('origin')->isRequired()->info("data source: api, github, musdig")->end()
             ->scalarNode('country')->info("2-letter country code")->end()
-            ->scalarNode('locale')->end()
+//            ->scalarNode('locale')->end() // ack! Deprecated
             ->scalarNode('notes')->end()
             ->scalarNode('dir')->info('defaults to <projectDir>/data')->end()
             ->arrayNode('links')
@@ -421,6 +509,33 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
             ->scalarNode('include')->end()
             ->end()->end();
     }
+
+
+    private function addBabelSection(NodeBuilder $root): void
+    {
+        $root
+            ->arrayNode('babel')
+            ->info('Babel / translation configuration for this pixie')
+            ->addDefaultsIfNotSet()
+            ->children()
+            ->scalarNode('source')
+            ->info('Source locale for Babel strings (default: en)')
+            ->defaultValue('en')
+//            ->cannotBeEmpty() // really, we should also allow something like @locale, to mean look for the $locale field in this row
+            ->end()
+            ->arrayNode('targets')
+            ->info('Target locales to translate into (defaults to enabled_locales minus source_locale)')
+            ->scalarPrototype()->cannotBeEmpty()->end()
+            ->defaultValue([])
+            ->end()
+            ->scalarNode('engine')
+            ->info('Preferred translation engine (e.g. libre, deepl)')
+            ->defaultNull()
+            ->end()
+            ->end()
+            ->end();
+    }
+
 
     private function addGitSection(NodeBuilder $sourceRoot): void
     {

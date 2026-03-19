@@ -7,7 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Survos\PixieBundle\Repository\EventParticipantRepository;
 
 #[ORM\Entity(repositoryClass: EventParticipantRepository::class)]
-#[ORM\Table(name: 'pixie_event_participant')]
+#[ORM\Table(name: 'event_participant')]
 #[ORM\UniqueConstraint(name: 'uniq_event_role_actor', columns: ['event_id','role_code','actor_row_id'])]
 #[ORM\Index(name: 'idx_actor_role', columns: ['actor_row_id','role_code'])]
 class EventParticipant

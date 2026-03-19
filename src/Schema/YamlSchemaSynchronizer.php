@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Survos\PixieBundle\Schema;
 
+use JetBrains\PhpStorm\Deprecated;
 use Survos\PixieBundle\Entity\CoreDefinition;
 use Survos\PixieBundle\Entity\FieldDefinition;
 use Survos\PixieBundle\Model\Config;
@@ -10,6 +11,7 @@ use Survos\PixieBundle\Model\Property;
 use Survos\PixieBundle\Service\PixieService;
 use Survos\PixieBundle\Service\SqlViewService;
 
+#[Deprecated]
 /**
  * Compiles survos_pixie YAML into CoreDefinition + FieldDefinition
  * in the *pixie database* (correct EM), not the default app EM.
@@ -23,6 +25,7 @@ final class YamlSchemaSynchronizer
 
     public function sync(string $ownerCode, Config $config, string $schemaVersion = 'v1'): void
     {
+        assert(false, "Populate the pixie from the registry, not from the yaml");
         // get the correct EM (sqlite file) + ensure ORM schema
         $ctx = $this->pixie->getReference($ownerCode);
         $em  = $ctx->em;

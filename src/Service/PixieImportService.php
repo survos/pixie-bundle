@@ -5,7 +5,7 @@ namespace Survos\PixieBundle\Service;
 // see https://github.com/bungle/web.php/blob/master/sqlite.php for a wrapper without PDO
 
 use Survos\PixieBundle\Entity\OriginalImage;
-use Survos\PixieBundle\Entity\Owner;
+use Survos\PixieBundle\Entity\Inst;
 use Survos\PixieBundle\Entity\RowImportState;
 use Survos\PixieBundle\Model\OriginalImage as OriginalImageModel;
 use Survos\PixieBundle\Model\PixieContext;
@@ -732,7 +732,7 @@ class PixieImportService
 
 
     /** the one and only place it's add to the database, to core, etc. */
-    public function addRow(array|object $row, Table $table, Owner $owner): Row
+    public function addRow(array|object $row, Table $table, Inst $inst): Row
     {
         $pkName = $table->getPkName();
         $tableName = $table->getName();

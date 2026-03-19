@@ -8,16 +8,16 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Survos\PixieBundle\Repository\CoreRepository;
-use Survos\PixieBundle\Entity\Field\Field;
-use Survos\PixieBundle\Entity\FieldSet;
-use Survos\PixieBundle\Entity\CustomField;
+// use Survos\PixieBundle\Entity\Field\Field;   // DEPRECATED
+// use Survos\PixieBundle\Entity\FieldSet;       // DEPRECATED
+// use Survos\PixieBundle\Entity\CustomField;    // DEPRECATED
 
 #[ORM\Entity(repositoryClass: CoreRepository::class)]
 #[ORM\Table(name: 'core')]
 #[ORM\UniqueConstraint(name: 'core_unique', columns: ['code'])]
-#[ORM\Index(name: 'IDX_CORE_OWNER', columns: ['owner_id'])]
+#[ORM\Index(name: 'IDX_CORE_INST', columns: ['inst_id'])]
 #[ORM\Index(name: 'IDX_CORE_CORE_CODE', columns: ['core_code'])]
-class Core
+class Core implements \Stringable
 {
     #[ORM\Id]
     #[ORM\Column(type: Types::STRING, length: 255)]
@@ -36,78 +36,23 @@ class Core
     #[ApiProperty(description: "Whether the core is currently enabled/visible.")]
     public ?bool $isEnabled = null;
 
-    #[ORM\ManyToOne(inversedBy: 'cores', targetEntity: Owner::class)]
+    #[ORM\ManyToOne(inversedBy: 'cores', targetEntity: Inst::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     #[ApiProperty(description: "Owning owner record (aggregate root).")]
-    public ?Owner $owner = null;
+    public ?Inst $inst = null;
 
-    /** @var Collection<int, FieldSet> */
-//    #[ORM\OneToMany(targetEntity: FieldSet::class, mappedBy: 'core', indexBy: 'code', orphanRemoval: true, cascade: ['persist'])]
-//    #[ORM\OrderBy(['orderIdx' => 'ASC'])]
-    #[ApiProperty(description: "Field set groupings that belong to this core.")]
-    public Collection $fieldSets;
-
-    #[ORM\Column(type: Types::INTEGER, nullable: false)]
-    #[ApiProperty(description: "Number of instances (rows) associated with this core.")]
-    public int $instanceCount = 0;
-
-    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
-    #[ApiProperty(description: "Counts keyed by related entity types for dashboards.")]
-    public ?array $relatedCounts = [];
-
-    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
-    #[ApiProperty(description: "Breakdown of item types present in this core.")]
-    public ?array $typeBreakdown = [];
-
-    /** @var Collection<int, CustomField> */
-    #[ORM\OneToMany(targetEntity: CustomField::class, mappedBy: 'core', orphanRemoval: true, cascade: ['persist'])]
-    #[ApiProperty(description: "Custom fields configured for this core.")]
-    public Collection $customFields;
-
-    /** @var Collection<int, Field> */
-//    #[ORM\OneToMany(targetEntity: Field::class, mappedBy: 'core', indexBy: 'code', orphanRemoval: true, cascade: ['persist'], fetch: 'EAGER')]
-//    #[ORM\OrderBy(['orderIdx' => 'ASC'])]
-    #[ApiProperty(description: "All field definitions (database/category/relation) for this core.")]
-    public Collection $fields;
-
-    /** @var Collection<int, InstanceTextType> */
-    #[ORM\OneToMany(targetEntity: InstanceTextType::class, mappedBy: 'core', orphanRemoval: true, cascade: ['persist'])]
-    #[ApiProperty(description: "Per-core text/label type definitions.")]
-    public Collection $instanceTextTypes;
-
-//    /** @var Collection<int, FieldMap> */
-//    // This was an ArrayCollection in-code; keeping as a collection
-//    #[ApiProperty(description: "Field mapping helpers associated with the core (in-memory or persisted class depending on your project).")]
-    public Collection $fieldMaps;
-
-    /** @var Collection<int, Reference> */
-    #[ORM\OneToMany(targetEntity: Reference::class, mappedBy: 'core', orphanRemoval: true)]
-    #[ApiProperty(description: "Reference/file/link records tied to this core.")]
-    public Collection $references;
-
-    #[ORM\Column(type: Types::INTEGER)]
-    #[ApiProperty(description: "Cached count of reference records.")]
-    public int $referenceCount = 0;
-
-    /** @var Collection<int, Category> */
-    #[ORM\OneToMany(mappedBy: 'core', targetEntity: Category::class, cascade: ['persist'], orphanRemoval: true)]
-    #[ORM\JoinColumn(onDelete: 'CASCADE')]
-    #[ApiProperty(description: "Category (taxonomy) nodes belonging to this core.")]
-    public Collection $categories;
+    // DEPRECATED relations removed: FieldSet, CustomField, Field, InstanceTextType, Reference, Category
 
     #[ORM\Column]
     #[ApiProperty(description: "Configuration summary values for this core (dashboards/metrics).")]
     public array $configSummary = [];
 
-    /** @var Collection<int, Instance> */
-    #[ORM\OneToMany(mappedBy: 'core', targetEntity: Instance::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
-    #[ApiProperty(description: "Domain instances (business rows) that live in this core.")]
-    public Collection $instances;
+//    /** @var Collection<int, Instance> */
+//    #[ORM\OneToMany(mappedBy: 'core', targetEntity: Instance::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+//    #[ApiProperty(description: "Domain instances (business rows) that live in this core.")]
+//    public Collection $instances; // not used
 
-    /** @var Collection<int, Relation> */
-    #[ORM\OneToMany(mappedBy: 'core', targetEntity: Relation::class, orphanRemoval: true)]
-    #[ApiProperty(description: "Relations/edges associated with this core.")]
-    public Collection $relations;
+    // DEPRECATED: $relations (Relation entity removed)
 
     /** @var Collection<int, Sheet> */
     #[ApiProperty(description: "Spreadsheet/sheet descriptors associated with this core (if used).")]
@@ -150,19 +95,11 @@ class Core
     #[ApiProperty(description: "Cached total number of rows associated with this core.")]
     public int $rowCount = 0;
 
-    public function __construct(string $id, string $code, ?Owner $owner = null)
+    public function __construct(string $id, string $code, ?Inst $inst = null)
     {
-        $this->id = $id;
+        $this->id   = $id;
         $this->code = $code;
-        $this->owner = $owner;
-
-        $this->fieldSets         = new ArrayCollection();
-        $this->customFields      = new ArrayCollection();
-        $this->fields            = new ArrayCollection();
-        $this->instanceTextTypes = new ArrayCollection();
-        $this->fieldMaps         = new ArrayCollection();
-        $this->references        = new ArrayCollection();
-        $this->categories        = new ArrayCollection();
+        $this->inst = $inst;
         $this->instances         = new ArrayCollection();
         $this->relations         = new ArrayCollection();
         $this->sheets            = new ArrayCollection();
@@ -365,5 +302,10 @@ class Core
             $this->rowCount = max(0, $this->rowCount - 1);
         }
         return $this;
+    }
+
+    public function __toString()
+    {
+        return $this->code;
     }
 }

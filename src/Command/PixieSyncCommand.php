@@ -3,146 +3,109 @@
 namespace Survos\PixieBundle\Command;
 
 use Psr\Log\LoggerInterface;
-use Survos\BunnyBundle\Service\BunnyService;
-use Survos\PixieBundle\Service\PixieImportService;
 use Survos\PixieBundle\Service\PixieService;
 use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Helper\ProgressBar;
-use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Attribute\Argument;
+use Symfony\Component\Console\Attribute\Option;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Finder\Finder;
-use Zenstruck\Console\Attribute\Argument;
-use Zenstruck\Console\Attribute\Option;
-use Zenstruck\Console\InvokableServiceCommand;
-use Zenstruck\Console\IO;
-use Zenstruck\Console\RunsCommands;
-use Zenstruck\Console\RunsProcesses;
-use Zenstruck\Filesystem\Archive\ZipFile;
-use ZipArchive;
 
-#[AsCommand('pixie:sync', "Upload/download directories (as zip) to/from bunny")]
-final class PixieSyncCommand extends InvokableServiceCommand
+#[AsCommand('pixie:sync', 'Upload/download directories (as zip) to/from bunny')]
+final class PixieSyncCommand
 {
-    use RunsCommands;
-    use RunsProcesses;
-
-    private bool $initialized = false; // so the event listener can be called from outside the command
-    private ProgressBar $progressBar;
-
     public function __construct(
-        #[Autowire('%kernel.project_dir%')] private string $projectDir,
-        private LoggerInterface       $logger,
-        private ParameterBagInterface $bag,
-        private readonly PixieService $pixieService,
-        private readonly ?BunnyService $bunnyService=null,
-    )
-    {
-
-        parent::__construct();
-    }
+        #[Autowire('%kernel.project_dir%')] private readonly string $projectDir,
+        private readonly LoggerInterface $logger,
+        private readonly PixieService   $pixieService,
+        // BunnyService injected optionally — not a hard dependency
+        private readonly mixed          $bunnyService = null,
+    ) {}
 
     public function __invoke(
-        IO                                                                      $io,
-        PixieService                                                            $pixieService,
-        PixieImportService                                                      $pixieImportService,
-        #[Argument(description: 'config code')] ?string                          $configCode,
-        #[Argument(description: "comma-delimited dirs (raw,json,pixie")] string $dirs='json',
-        #[Option(description: "upload to bunny")] bool          $upload = false,
-        #[Option(description: "download from bunny")] bool          $download = false,
+        SymfonyStyle $io,
+        #[Argument] ?string $configCode = null,
+        #[Argument('comma-delimited dirs (raw,json,pixie)')] string $dirs = 'json',
+        #[Option('upload to bunny')]   bool $upload   = false,
+        #[Option('download from bunny')] bool $download = false,
+    ): int {
+        if ($this->bunnyService === null) {
+            $io->error('BunnyService not available. Run: composer require survos/bunny-bundle');
+            return Command::FAILURE;
+        }
 
-//        #[Option(description: "/raw")] bool          $raw = false,
-//        #[Option(description: "/json")] bool          $json = false,
-//        #[Option(description: "/pixie")] bool          $pixie = false,
-    ): int
-    {
-        if (!$this->bunnyService) {
-            $this->io()->error("composer req survos/bunny-bundle");
-            return self::FAILURE;
-        }
-        $configCode ??= getenv('PIXIE_CODE');
-        $this->initialized = true;
-        $config = $pixieService->selectConfig($configCode);
-        assert($config, $config->getConfigFilename());
-        if (empty($dirOrFilename)) {
-            $dirOrFilename = $pixieService->getSourceFilesDir($configCode);
-        }
         if (!$upload && !$download) {
-            $io->error("You must specify --upload or --download");
-            return self::FAILURE;
+            $io->error('You must specify --upload or --download');
+            return Command::FAILURE;
         }
 
+        $configCode ??= getenv('PIXIE_CODE');
         $baseDir = $this->pixieService->getSourceFilesDir($configCode);
-        $zipDir = $this->pixieService->getDataRoot() . "/_zip";
+        $zipDir  = $this->pixieService->getDataRoot() . '/_zip';
+
         if (!is_dir($zipDir)) {
             mkdir($zipDir, 0777, true);
         }
 
         foreach (explode(',', $dirs) as $dir) {
-            $zipFilename = $zipDir . "/$configCode-$dir.zip";
-            $localDir = $baseDir . "/$dir";
+            $zipFilename = "{$zipDir}/{$configCode}-{$dir}.zip";
+            $localDir    = "{$baseDir}/{$dir}";
+
             if ($upload) {
-                $io->writeln("zip $localDir to $zipFilename ");
-                $this->zip($localDir, $zipFilename);
-//                $this->bunnyService->uploadFile();
+                $io->writeln("Zipping {$localDir} → {$zipFilename}");
+                $this->zip($localDir, $zipFilename, $io);
+                // $this->bunnyService->uploadFile($zipFilename, ...);
+                $io->note('BunnyService upload not yet wired — zip created at ' . $zipFilename);
             }
+
             if ($download) {
-                $io->writeln("unzip $zipFilename to $localDir ");
-                $this->unzip($zipFilename, $localDir);
+                $io->writeln("Unzipping {$zipFilename} → {$localDir}");
+                $this->unzip($zipFilename, $localDir, $io);
             }
         }
 
-        $io->success($this->getName() .  ' success ' . $configCode);
-        return self::SUCCESS;
+        $io->success('pixie:sync success ' . $configCode);
+        return Command::SUCCESS;
     }
 
-    private function unzip(string $filename, string $dir)
+    private function unzip(string $filename, string $dir, SymfonyStyle $io): void
     {
-        $zip = new ZipArchive();
+        $zip = new \ZipArchive();
         if ($zip->open($filename)) {
             $zip->extractTo($dir);
             $zip->close();
         } else {
-            $this->io()->error("Unable to unzip $filename to $dir");
+            $io->error("Unable to unzip {$filename} to {$dir}");
         }
     }
 
-    private function zip(string $dir, string $filename)
+    private function zip(string $dir, string $filename, SymfonyStyle $io): void
     {
-        // compress a local directory (all files (recursive) in "some/local/directory" are added to archive)
         if (file_exists($filename)) {
             unlink($filename);
         }
-        $this->io()->title($filename . " ($dir)");
-        $zipFile = ZipFile::compress(new \SplFileInfo($dir), $filename);
-        $table = new Table($this->io()->output());
-        $table->setHeaders(['file','size']);
-        foreach ($zipFile->directory() as $file) {
-            $table->addRow([$file->path()->toString(), $file->size()]);
-        };
-        $table->render();
-        return;
 
-        assert(is_dir($dir));
-        $zip = new ZipArchive();
-        $ret = $zip->open($filename, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-        $this->io()->writeln("Writing $filename");
-        if ($ret !== TRUE) {
-            printf('Failed with code %d', $ret);
-        } else {
-            $finder = new Finder();
-            foreach ($finder->in($dir) as $file) {
+        $zip    = new \ZipArchive();
+        $result = $zip->open($filename, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
 
-            }
-            $options = ['add_path' => $dir, 'remove_all_path' => TRUE];
-//            $zip->addPattern($dir);
-            $this->io()->writeln($dir);
-            dump($options);
-            $zip->addGlob('*', GLOB_BRACE, $options);
-            $zip->close();
+        if ($result !== true) {
+            $io->error("Failed to create zip (code {$result}): {$filename}");
+            return;
         }
 
+        $finder = new Finder();
+        $finder->files()->in($dir);
+        $rows = [];
+
+        foreach ($finder as $file) {
+            $zip->addFile($file->getRealPath(), $file->getRelativePathname());
+            $rows[] = [$file->getRelativePathname(), $file->getSize()];
+        }
+
+        $zip->close();
+
+        $io->table(['File', 'Size'], $rows);
+        $io->writeln(sprintf('Written %d files to %s', count($rows), $filename));
     }
-
-
 }

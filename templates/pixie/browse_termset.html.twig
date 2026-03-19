@@ -1,0 +1,112 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Pixie {{ pixieCode }} • TermSet {{ termSet.code ?? termSet.id }}{% endblock %}
+
+{% block body %}
+    <div class="page-header d-print-none">
+        <div class="container-xl">
+            <div class="row g-2 align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        TermSet: <code>{{ termSet.code ?? termSet.id }}</code>
+                        <span class="text-muted ms-2">({{ count|number_format(0) }} terms)</span>
+                    </h2>
+                    <div class="text-muted mt-1">
+                        Pixie: <a href="{{ path('pixie_dashboard', {pixieCode: pixieCode}) }}"><code>{{ pixieCode }}</code></a>
+                        • locale: <span class="badge bg-blue-lt">{{ app.request.locale }}</span>
+                        • source: <span class="badge bg-secondary-lt">{{ conf.source.locale ?? 'n/a' }}</span>
+                    </div>
+                </div>
+                <div class="col-auto ms-auto d-print-none">
+                    <a class="btn btn-outline-secondary" href="{{ path('pixie_dashboard', {pixieCode: pixieCode}) }}">
+                        Back to dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-body">
+        <div class="container-xl">
+            <div class="row row-deck row-cards">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-status-top bg-azure"></div>
+                        <div class="card-header">
+                            <h3 class="card-title">Terms</h3>
+                            <div class="card-subtitle text-muted">
+                                Showing {{ terms|length|number_format(0) }} of {{ count|number_format(0) }}
+                                {% if offset is defined and offset %}
+                                    (offset {{ offset|number_format(0) }})
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-vcenter table-striped mb-0">
+                                <thead>
+                                <tr>
+                                    <th style="width: 70px;">#</th>
+                                    <th style="width: 240px;">Code</th>
+                                    <th>Label</th>
+                                    <th style="width: 140px;" class="text-end">Count</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for t in terms %}
+                                    <tr>
+                                        <td class="text-muted">{{ (offset|default(0)) + loop.index }}</td>
+                                        <td><code>{{ t.code ?? t.id }}</code></td>
+                                        <td>
+                                            {# Term has virtual label property via hooks; fallback to rawLabel/code/id #}
+                                            {{ t.label ?? t.rawLabel ?? t.code ?? t.id }}
+                                        </td>
+                                        <td class="text-end text-muted">
+                                            {% if t.count is defined and t.count is not null %}
+                                                {{ t.count|number_format(0) }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-muted">No terms found.</td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {% set limit = limit|default(50) %}
+                        {% set offset = offset|default(0) %}
+                        <div class="card-footer d-flex justify-content-between align-items-center">
+                            <div class="text-muted">
+                                Limit: {{ limit }}{% if offset %} • Offset: {{ offset }}{% endif %}
+                            </div>
+
+                            <div class="btn-list">
+                                {% if offset > 0 %}
+                                    {% set prev = offset - limit %}
+                                    {% if prev < 0 %}{% set prev = 0 %}{% endif %}
+                                    <a class="btn btn-outline-secondary"
+                                       href="{{ path('pixie_termset_browse', {pixieCode: pixieCode, termSetId: termSet.id, limit: limit, offset: prev}) }}">
+                                        Prev
+                                    </a>
+                                {% endif %}
+
+                                {% if (offset + limit) < count %}
+                                    <a class="btn btn-outline-secondary"
+                                       href="{{ path('pixie_termset_browse', {pixieCode: pixieCode, termSetId: termSet.id, limit: limit, offset: offset + limit}) }}">
+                                        Next
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

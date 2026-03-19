@@ -22,9 +22,10 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 final class PixiePrepareCommand
 {
 
-    private bool $initialized = false; // so the event listener can be called from outside the command
+    private bool $initialized = false;
     private ?ProgressBar $progressBar = null;
-    private $total = 0; // hack to bypass count for large JSON files, e.g. smk
+    private int $total = 0;
+    private ?SymfonyStyle $io = null; // stored for use in event listeners
 
     public function __construct(
         private LoggerInterface       $logger,
@@ -53,7 +54,7 @@ final class PixiePrepareCommand
     ): int
     {
         $configCode ??= getenv('PIXIE_CODE');
-
+        $this->io = $io;
         $this->initialized = true;
         // not sure how to auto-wire this in the constructor
         // idea: if conf doesn't exist, require a directory name and create it, a la rector
@@ -82,7 +83,7 @@ final class PixiePrepareCommand
 
 //        if (!is_dir($dir)) {
 //            $io->error("$dir does not exist.  set the directory in config or pass it as the first argument");
-//            return self::FAILURE;
+//            return Command::FAILURE;
 //        }
 
 //        if (!file_exists($configFilename) && (file_exists($configWithCsv = $dirOrFilename . "/$config"))) {
@@ -213,7 +214,7 @@ final class PixiePrepareCommand
         if (!$this->initialized) {
             return;
         }
-        $this->io()->title(sprintf("%s -> %s", $event->filename, $event->pixieDbName));
+        $this->io->title(sprintf("%s -> %s", $event->filename, $event->pixieDbName));
         if (!$count = $this->total) {
             if ($event->getType() == 'json') {
                 // faster to get the first record and filesize and divide, for a rough estimate.
@@ -241,7 +242,7 @@ final class PixiePrepareCommand
             }
         }
 
-        $this->progressBar = new ProgressBar($this->io()->output(), $count);
+        $this->progressBar = new ProgressBar($this->io->getOutput(), $count);
 //        $this->progressBar->start($count);
     }
 
@@ -273,7 +274,7 @@ final class PixiePrepareCommand
     public function runImport(string $pixieCode, ?string $subCode = null): void
     {
         $cli = "pixie:import $pixieCode $subCode";
-        $this->io()->warning('bin/console ' . $cli);
+        $io->warning('bin/console ' . $cli);
         $this->runCommand($cli);
     }
 

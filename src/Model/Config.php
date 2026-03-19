@@ -1,190 +1,59 @@
 <?php
+declare(strict_types=1);
 
 namespace Survos\PixieBundle\Model;
 
-use Survos\PixieBundle\Entity\Owner;
-use Survos\PixieBundle\Model\Table;
-use Symfony\Component\Yaml\Yaml;
+use Survos\PixieBundle\Entity\Inst;
 
-class Config
+final class Config
 {
-    const string TYPE_SYSTEM = 'system';
-    const string TYPE_MUSEUM = 'museum';
-    const string VISIBILITY_PUBLIC = 'public';
-    const string VISIBILITY_PRIVATE = 'private';
-    const string VISIBILITY_UNLISTED = 'unlisted';
-    const string TYPE_AGGREGATOR = 'agg';
+    public const string TYPE_SYSTEM = 'system';
+    public const string TYPE_MUSEUM = 'museum';
+    public const string TYPE_AGGREGATOR = 'agg';
+
+    public const string VISIBILITY_PUBLIC = 'public';
+    public const string VISIBILITY_PRIVATE = 'private';
+    public const string VISIBILITY_UNLISTED = 'unlisted';
 
     /**
-     * @param array<string, Table> $tables
+     * @param array<string,Table> $tables
      */
     public function __construct(
-        private readonly string|float|null $version=null,
-        public ?string $code=null,
-        public ?Source $source=null,
-        private array $files=[],
-        /** @var array<string,Table> */ public array $tables = [],
-        public array $templates=[],
-        private ?string $configFilename=null,
-        private readonly string $type=self::TYPE_MUSEUM,
-        private string $visibility=self::VISIBILITY_PUBLIC,
-        private readonly array           $data=[],
-        public ?string $dataDir = null, // set in service, kinda hacky
-        public ?string $pixieFilename = null, // set in service, kinda hacky, the sqlite file
-        private ?Owner $owner=null,
+        public readonly string|float|null $version = null,
+        public ?string $code = null,
+        public ?Source $source = null,
 
-    )
-    {
-//        if ($this->$configFilename) {
-//            $x = $denormalizer->denormalize($configData, Config::class);
-//            dd($x, $configData);
-//
-//            $this->data = Yaml::parseFile($this->filename);
-//        }
-    }
+        /** @var array<string,string> file => table */
+        public array $files = [],
 
-    public function getOwner(): ?Owner
-    {
-        return $this->owner;
-    }
+        /** @var array<string,Table> */
+        public array $tables = [],
 
-    public function setOwner(?Owner $owner): Config
-    {
-        $this->owner = $owner;
-        return $this;
-    }
+        public array $templates = [],
 
-    public function getVisibility(): string
-    {
-        return $this->visibility;
-    }
+        public ?string $configFilename = null,
+        public readonly string $type = self::TYPE_MUSEUM,
+        public string $visibility = self::VISIBILITY_PUBLIC,
 
-    public function setVisibility(string $visibility): void
-    {
-        $this->visibility = $visibility;
-    }
+        public readonly array $data = [],
 
-    public function getType(): string
-    {
-        return $this->type;
-    }
+        // late-set by PixieService
+        public ?string $dataDir = null,
+        public ?string $pixieFilename = null,
 
-    public function getFiles(): array
-    {
-        return $this->files;
-    }
+        // late-set by owner resolver (optional)
+        public ?Inst $inst = null,
 
-    public function getSource(): ?Source
-    {
-        return $this->source;
-    }
-
-    public function getDataDir(): ?string
-    {
-        return $this->dataDir;
-    }
-
-    public function getCode(): ?string
-    {
-        return $this->code;
-    }
-
-    public function getPixieFilename(): ?string
-    {
-        return $this->pixieFilename;
-    }
-
-    public function setPixieFilename(?string $pixieFilename): self
-    {
-        $this->pixieFilename = $pixieFilename;
-        return $this;
-    }
-
-    public function getConfigFilename(): ?string
-    {
-        return $this->configFilename;
-    }
-    public function setConfigFilename(?string $configFilename): self
-    {
-        $this->configFilename = $configFilename;
-        return $this;
-    }
-
-    public function getIgnored(): array
-    {
-        $ignore =  $this->source?->ignore;
-        if (is_string($ignore)) {
-            $ignore = [$ignore];
-        }
-        return $ignore;
-    }
-    public function getFileToTableMap(): array
-    {
-        return $this->files;
-    }
-
-    public function getSourceFilesDir(): ?string
-    {
-        return $this->source?->dir;
-    }
-
-    /**
-     * @return array<Table>
-     */
-    public function getTables(): array
-    {
-        return $this->tables;
-    }
-
-    public function getTable(string $tableName): ?Table
-    {
-        return $this->tables[$tableName] ?? null;
-    }
-
-    public function addTable(string $tableName, Table $table): self
-    {
-        $this->tables[$tableName] = $table;
-        return $this;
-    }
-
-    public function setTables(array $tables): Config
-    {
-        foreach ($tables as $table) {
-            assert($table instanceof Table, "should be a table!");
-        }
-        $this->tables = $tables;
-        return $this;
-    }
-
-    public function setFiles(array $files): Config
-    {
-        $this->files = $files;
-        return $this;
-    }
-
-    public function setSource(?Source $source): Config
-    {
-        $this->source = $source;
-        return $this;
-    }
-
-    public function getTableRules($tableName): array
-    {
-        return $this->tables[$tableName]->getRules();
-    }
-    public function getProperties($tableName): array
-    {
-
-        return $this->tables[$tableName]->getProperties();
-    }
+        public ?BabelConfig $babel = null,
+    ) {}
 
     public function getVersion(): string|float|int
     {
-        assert($this->version, "Missing version in $this->pixieFilename, $this->code");
+        assert($this->version !== null, sprintf('Missing version in %s (%s)', (string) $this->pixieFilename, (string) $this->code));
         return $this->version;
     }
 
-    public function rp()
+    public function rp(): array
     {
         return ['pixieCode' => $this->code];
     }
@@ -193,9 +62,47 @@ class Config
     {
         return $this->type === self::TYPE_SYSTEM;
     }
+
     public function isMuseum(): bool
     {
         return $this->type === self::TYPE_MUSEUM;
     }
 
+    public function getSourceLocale(string $default = 'en'): string
+    {
+        return $this->babel?->source ?: $default;
+    }
+
+    /**
+     * @param list<string> $enabledLocales
+     * @return list<string>
+     */
+    public function getTargetLocales(array $enabledLocales = [], string $defaultSource = 'en'): array
+    {
+        $source = $this->getSourceLocale($defaultSource);
+
+        $targets = $this->babel?->targets;
+        if (is_array($targets) && $targets !== []) {
+            $targets = array_values(array_unique(array_filter($targets, fn(string $l) => $l !== $source)));
+            return $targets;
+        }
+
+        // fallback: enabled locales minus source
+        $enabledLocales = $enabledLocales ?: [$source];
+        return array_values(array_unique(array_filter($enabledLocales, fn(string $l) => $l !== $source)));
+    }
+
+    public function getIgnored(): array
+    {
+        $ignore = $this->source?->ignore ?? [];
+        if (is_string($ignore)) {
+            return [$ignore];
+        }
+        return is_array($ignore) ? $ignore : [];
+    }
+
+    public function getTable(string $tableName): ?Table
+    {
+        return $this->tables[$tableName] ?? null;
+    }
 }

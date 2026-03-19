@@ -37,7 +37,7 @@ final class PixieMediaCommand extends Command
         private readonly LoggerInterface     $logger,
         private EventDispatcherInterface     $eventDispatcher,
         private PixieService                 $pixieService,
-        private SaisClientService            $saisClientService,
+//        private SaisClientService            $saisClientService,
         private readonly HttpClientInterface $httpClient,
         private readonly MessageBusInterface $messageBus,
     )
@@ -72,7 +72,7 @@ final class PixieMediaCommand extends Command
 //            $approx = $repo->count();
 //            $io->error("Missing source|approx_image_count in config.  currently "
 //                . $approx);
-//            return self::FAILURE;
+//            return Command::FAILURE;
 //        }
 
         if ($setup) {
@@ -223,7 +223,7 @@ final class PixieMediaCommand extends Command
 
         //
         $io->writeln("\n\nfinished, now run pixie:merge --images --sync");
-        return self::SUCCESS;
+        return Command::SUCCESS;
 
     }
 

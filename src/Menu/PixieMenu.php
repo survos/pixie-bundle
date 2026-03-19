@@ -2,12 +2,10 @@
 
 namespace Survos\PixieBundle\Menu;
 
-use Survos\BootstrapBundle\Event\KnpMenuEvent;
-use Survos\BootstrapBundle\Service\MenuService;
-use Survos\BootstrapBundle\Traits\KnpMenuHelperInterface;
-use Survos\BootstrapBundle\Traits\KnpMenuHelperTrait;
-use Survos\PixieBundle\Entity\Str;
-use Survos\PixieBundle\Entity\StrTranslation;
+use Survos\TablerBundle\Event\MenuEvent;
+use Survos\TablerBundle\Service\MenuService;
+use Survos\TablerBundle\Traits\KnpMenuHelperInterface;
+use Survos\TablerBundle\Menu\MenuBuilderTrait;
 use Survos\PixieBundle\Service\PixieService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -23,9 +21,9 @@ use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 #[AsEventListener(event: KnpMenuEvent::AUTH_MENU, method: 'appAuthMenu')]
 */
 
-final class PixieMenu implements KnpMenuHelperInterface
+final class PixieMenu
 {
-    use KnpMenuHelperTrait;
+    use MenuBuilderTrait;
 
     public function __construct(
         #[Autowire('%kernel.environment%')] protected string $env,
@@ -36,15 +34,17 @@ final class PixieMenu implements KnpMenuHelperInterface
     ) {
     }
 
-    public function appAuthMenu(KnpMenuEvent $event): void
+    private bool $isAdmin { get => $this->authorizationChecker->isGranted('ROLE_ADMIN'); }
+
+    public function appAuthMenu(MenuEvent $event): void
     {
         $menu = $event->getMenu();
-        $this->menuService->addAuthMenu($menu);
+//        $this->menuService->addAuthMenu($menu);
     }
 
 //    #[AsEventListener(event: KnpMenuEvent::PAGE_MENU)]
-    #[AsEventListener(event: KnpMenuEvent::NAVBAR_MENU)]
-    public function pixiePageMenu(KnpMenuEvent $event): void
+    #[AsEventListener(event: MenuEvent::NAVBAR_MENU)]
+    public function pixiePageMenu(MenuEvent $event): void
     {
         // there must be a pixie.  Messy, because this goes in app, need to add it to the config in pixie
         $menu = $event->getMenu();
@@ -52,11 +52,10 @@ final class PixieMenu implements KnpMenuHelperInterface
             return; // pixie  browse should be handled outside of this menu.
         }
 
-        if (!$this->isGranted('ROLE_ADMIN')) {
+        if (!$this->isAdmin) {
 //            return;
         }
         $config = $this->pixieService->getReference($pixieCode);
-        $owner = $config->ownerRef;
         $this->add($menu, 'pixie_browse_configs');
 
 
@@ -132,8 +131,8 @@ final class PixieMenu implements KnpMenuHelperInterface
 
     }
 
-    #[AsEventListener(event: KnpMenuEvent::NAVBAR_MENU)]
-    public function navbarMenu(KnpMenuEvent $event): void
+    #[AsEventListener(event: MenuEvent::NAVBAR_MENU)]
+    public function navbarMenu(MenuEvent $event): void
     {
         $menu = $event->getMenu();
         $options = $event->getOptions();

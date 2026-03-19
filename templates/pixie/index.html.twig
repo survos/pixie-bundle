@@ -1,44 +1,126 @@
 {% extends '@SurvosPixie/pixie/layout.html.twig' %}
 
-{% block title %}Pixies{% endblock %}
+{% block title %}Pixie Registry{% endblock %}
 
 {% block body %}
 
-    {#    <p class="mb-1 text-muted">{{ _self }}</p> #}
-<h3 class="mb-3">{{ 'Pixies' }}</h3>
-
-
-        <form
-                hx-get="{{ path('pixie_config_search') }}"
-                hx-target="#search-results"
-                hx-trigger="search, submit, load, input changed delay:400ms from:find input[type='search'], input delay:100ms from:find input[type='checkbox']">
-            <div class="row align-items-center mb-4">
-                <div class="col-lg-8">
-                    <h5 class="mb-0">
-                        Search Pixies
-                        <span class="htmx-indicator">
-                    {#    <img src="/img/bars.svg"/> Searching...#}
-                    </span>
-                    </h5>
-                </div>
-                <div class="col-lg-1">
-                    <div class="form-check align-items-center justify-content-end d-flex gap-2">
-                        <input id="showCounts" class="form-check-input" name="active_only" type="checkbox"/>
-                        <label for="showCounts" class="form-check-label text-muted">Show Counts</label>
-                    </div>
-                </div>
-                <div class="col-lg-3">
-                    <input class="form-control py-2 px-3" type="search" name="q" placeholder="Begin Typing To Search Users..."/>
-                </div>
-            </div>
-        </form>
-
-
-<div id="search-results">
-
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="mb-0">Pixie Registry</h3>
+    <div class="d-flex gap-2">
+        <small class="text-muted align-self-center">DB dir: <code>{{ dbDir }}</code></small>
+        <a href="{{ path('pixie_browse_configs') }}?sync=1"
+           class="btn btn-sm btn-outline-primary">
+            ↻ Scan datasets
+        </a>
+    </div>
 </div>
 
+{% if datasetInfos is not empty %}
 
-<div>
+    {# Group by aggregator #}
+    {% set byAggregator = {} %}
+    {% for info in datasetInfos %}
+        {% set agg = info.aggregator ?? 'unknown' %}
+        {% if byAggregator[agg] is not defined %}
+            {% set byAggregator = byAggregator|merge({(agg): []}) %}
+        {% endif %}
+        {% set byAggregator = byAggregator|merge({(agg): byAggregator[agg]|merge([info])}) %}
+    {% endfor %}
 
-    {% endblock %}
+    {% for aggregator, infos in byAggregator %}
+        <h5 class="mt-4 mb-2 text-capitalize">{{ aggregator }} <span class="badge bg-secondary">{{ infos|length }}</span></h5>
+        <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Dataset</th>
+                    <th>Label</th>
+                    <th>Status</th>
+                    <th>Records</th>
+                    <th>Locale</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for info in infos %}
+                {% set pixieCode = info.pixieCode() %}
+                {% set hasPixie = info.hasPixieDb() %}
+                <tr>
+                    <td><code>{{ info.datasetKey }}</code></td>
+                    <td>{{ info.label ?? '-' }}</td>
+                    <td>
+                        {% set statusColor = {
+                            'indexed':    'success',
+                            'pixie':      'primary',
+                            'profiled':   'info',
+                            'normalized': 'warning',
+                            'raw':        'secondary',
+                            'discovered': 'light',
+                        } %}
+                        <span class="badge bg-{{ statusColor[info.status] ?? 'light' }} text-dark">
+                            {{ info.status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if info.pixieRowCount %}
+                            {{ info.pixieRowCount|number_format }} rows
+                        {% elseif info.normalizedCount %}
+                            {{ info.normalizedCount|number_format }} norm.
+                        {% elseif info.objCount %}
+                            ~{{ info.objCount|number_format }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ info.locale ?? '-' }}</td>
+                    <td>
+                        {% if hasPixie %}
+                            <a href="{{ path('pixie_dashboard', {pixieCode: pixieCode}) }}"
+                               class="btn btn-xs btn-outline-primary">
+                                Browse
+                            </a>
+                        {% else %}
+                            <span class="text-muted small">no DB</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    {% endfor %}
+
+{% elseif configs is not empty %}
+
+    {# Fallback: YAML config list #}
+    <div class="alert alert-info">
+        Showing YAML-configured pixies. Run <code>bin/console data:scan-datasets</code> to populate the full registry.
+    </div>
+    <div class="list-group">
+    {% for code, config in configs %}
+        <a href="{{ path('pixie_dashboard', {pixieCode: code}) }}"
+           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <div>
+                <strong>{{ code }}</strong>
+                {% if config.source.label is defined %}
+                    <small class="text-muted ms-2">{{ config.source.label }}</small>
+                {% endif %}
+            </div>
+            <span class="badge bg-secondary">{{ config.source.origin ?? 'yaml' }}</span>
+        </a>
+    {% endfor %}
+    </div>
+
+{% else %}
+
+    <div class="alert alert-warning">
+        <h5>No pixies found</h5>
+        <p class="mb-2">The registry is empty. Populate it by running:</p>
+        <pre class="mb-2">bin/console data:scan-datasets
+bin/console pixie:migrate --provider=fortepan</pre>
+        <p class="mb-0">Then <a href="{{ path('pixie_browse_configs') }}">refresh this page</a>.</p>
+    </div>
+
+{% endif %}
+
+{% endblock %}

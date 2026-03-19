@@ -104,8 +104,8 @@ final class IterateCommand extends Command
             }
             $count = $kv->count(where: $where);
             if (!$count) {
-                $this->io()->warning("No items found for " . json_encode($where));
-                return self::SUCCESS;
+                $io->warning("No items found for " . json_encode($where));
+                return Command::SUCCESS;
             }
 
             $progressBar = new ProgressBar($io, $count);
@@ -208,7 +208,7 @@ final class IterateCommand extends Command
         );
 
         $io->success($this->getName() . ' success ' . $kv->getFilename());
-        return self::SUCCESS;
+        return Command::SUCCESS;
     }
 
 }

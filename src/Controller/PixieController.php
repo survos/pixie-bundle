@@ -11,7 +11,7 @@ use Survos\PixieBundle\Repository\RowRepository;
 use Survos\PixieBundle\Repository\CoreRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
-use Survos\PixieBundle\Entity\Owner;
+use Survos\PixieBundle\Entity\Inst;
 use Survos\PixieBundle\Entity\Row;
 use Survos\PixieBundle\Entity\Core;
 use Survos\PixieBundle\Event\StorageBoxEvent;
@@ -182,7 +182,7 @@ class PixieController extends AbstractController
     ): array|Response
     {
         $core = null;
-        $conf = $this->pixieService->selectConfig($pixieCode);
+        $conf = $this->pixieService->getReference($pixieCode);
 //        dd($this->pixieEntityManager, $tableName, $key);
         $item = $this->rowRepository->find($key);
 //        $row = $this->rowRepository->findBy([
@@ -431,67 +431,6 @@ class PixieController extends AbstractController
 
     }
 
-    private function getCounts(StorageBox $kv, ?string $tableName=null, int $limit=0): array
-    {
-        $counts = [];
-        foreach ($kv->getIndexes($tableName) as $indexName) {
-            $counts[$indexName] = $kv->getCounts($indexName, $tableName, $limit);
-        }
-        return $counts;
-
-
-    }
-
-    #[Route('/_search', name: 'pixie_config_search')]
-//    #[Template()]
-    public function search_pixies(
-        #[MapQueryParameter] int $limit = 50,
-        #[MapQueryParameter] string $q = '',
-        #[MapQueryParameter] string $pixieCode = ''
-    ): array|Response
-    {
-        return [];
-        $configs = $this->pixieService->getConfigFiles($q, limit: $limit, pixieCode: $pixieCode);
-        // cache candidate!
-        $tables = [];
-        foreach ($configs as $pixieCode => $config) {
-            assert($config->getCode(), $pixieCode);
-            $kv = $this->pixieService->getStorageBox($pixieCode);
-            foreach ($kv->getTables() as $tableName => $table) {
-                // how many items in the table
-                $tables[$pixieCode][$tableName]['count'] = -4; //  $kv->count($tableName);
-                // the key indexes
-                $indexCounts = []; // $this->getCounts($kv, $tableName, $limit);
-                $tables[$pixieCode][$tableName]['indexes'] = $indexCounts;
-//                foreach ($kv->getIndexes($tableName) as $indexName) {
-//                    $tables[$pixieCode][$tableName]['indexes'][$indexName] = $kv->getCounts($indexName, $tableName);
-//                }
-            }
-        }
-
-        return $this->render('@SurvosPixie/pixie/_search_results.html.twig', [
-            'configs' => $configs,
-                'dir' => $this->pixieService->getConfigDir(),
-                'tables' => $tables,
-
-            ]
-        );
-
-    }
-
-    #[Route('/', name: 'pixie_browse_configs')]
-//    #[Template()]
-    public function pixies(
-        #[MapQueryParameter] int $limit = 50
-    ): array|Response
-    {
-        return $this->render('@SurvosPixie/pixie/index.html.twig', [
-            'dir' => $this->pixieService->getConfigDir(),
-        ]);
-//        return $this->render(, );
-    }
-
-
     #[Route('/{pixieCode}/home', name: 'pixie_homepage', options: ['expose' => true])]
     #[Route('/{pixieCode}', name: 'pixie_overview')]
     public function info(
@@ -501,34 +440,13 @@ class PixieController extends AbstractController
     ): Response
     {
         $ctx = $this->pixieService->getReference($pixieCode);
-        $em = $ctx->em;
-        $tables = $em->getRepository(Table::class)->findAll();
-        $stringCount = $em->getRepository(Str::class)->count();
-        $imageCount = $em->getRepository(OriginalImage::class)->count();
-//        dd($stringCount, $imageCount);
-
-        // old way, before entities
-//        $conn = $this->pixieEntityManager->getConnection();
-//        $sm = $conn->createSchemaManager();
-//        foreach ($sm->listViews() as $view) {
-//            $viewCode = $view->getName();
-//            try {
-//                $pdoResult = $conn->executeQuery("SELECT * FROM $viewCode limit $limit");
-//                $data[$viewCode] = $pdoResult->fetchAllAssociative();
-//            } catch (\Exception $exception) {
-//                dd($view, $view->getSql(), $exception->getMessage());
-//            }
-//        }
-        // $sm->listDatabases(), is not supported by sqlite
-//        dd($data,  $sm->listViews(), $sm->listTables());
-
         $countsByCore = $this->pixieService->getCountsByCore();
         foreach ($countsByCore as $code => $count) {
             $core = $this->pixieService->getCoreInContext($ctx, $code);
             $rows = $ctx->repo(Row::class)->findBy(['core' => $core], [], 50);
             assert($core, "Missing core $code");
 
-            $data[$code] = $core->rows->slice(0, $limit); // $this->rowRepository->findBy(['core.id' => $code], [], $limit);
+            $data[$code] = $rows; // $this->rowRepository->findBy(['core.id' => $code], [], $limit);
         }
 
 //        dump($em->getConnection()->getParams());
@@ -711,7 +629,6 @@ class PixieController extends AbstractController
     ): array
     {
         $ctx = $this->pixieService->getReference($pixieCode);
-        dd($ctx->config->getTable($tableName));
         $this->pixieService->selectConfig($pixieCode);
 //        $core = $this->coreRepository->find($tableName);
         $core = $this->coreService->getCore($tableName);

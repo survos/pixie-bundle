@@ -8,7 +8,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Survos\PixieBundle\Repository\EventRepository;
 
 #[ORM\Entity(repositoryClass: EventRepository::class)]
-#[ORM\Table(name: 'pixie_event')]
+#[ORM\Table(name: 'event')]
 #[ORM\Index(name: 'idx_event_subject', columns: ['subject_row_id','event_definition_id'])]
 #[ORM\Index(name: 'idx_event_place',   columns: ['place_row_id'])]
 class Event

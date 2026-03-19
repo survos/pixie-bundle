@@ -3,50 +3,52 @@ declare(strict_types=1);
 
 namespace Survos\PixieBundle\Service;
 
-use Survos\CoreBundle\Service\SurvosUtils;
 use Survos\PixieBundle\Entity\Row;
 use Survos\PixieBundle\Model\PixieContext;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
-use Symfony\Component\Serializer\SerializerInterface;
 
+/**
+ * Project Row -> Index Model -> normalized array for Meili.
+ */
 final class PixieDocumentProjector
 {
-    public function __construct(private readonly EventQueryService $events,
-                                private readonly NormalizerInterface $normalizer,
-                                private readonly SerializerInterface $serializer) {}
+    public function __construct(
+        private readonly IndexModelResolver $models,
+        private readonly RowToIndexModelMapper $mapper,
+        private readonly NormalizerInterface $normalizer,
+        private readonly LocaleContext $localeContext,
+    ) {}
 
-    /** @return array<string,mixed> */
-    public function project(PixieContext $ctx, Row $row, ?string $locale = null): array
+    /**
+     * @return array<string,mixed>
+     */
+    public function project(PixieContext $ctx, Row $row, string $indexedLocale): array
     {
+        $pixieCode = $ctx->pixieCode;
+        $config = $ctx->config;
+        $sourceLocale = $config->getSourceLocale($this->localeContext->getDefault());
 
-        $within = property_exists($row, 'idWithinCore') ? $row->idWithinCore
-                 : (property_exists($row, 'isWithinCore') ? $row->isWithinCore : null);
-        $label  = property_exists($row, 'label') ? $row->label : null;
+        $resolved = $this->models->resolve($pixieCode);
+        $class = $resolved['class'];
+        $persisted = $resolved['persisted'];
 
-        $doc = [
-            'id'          => $within,
-            'label'       => $label,
-//            'description' => property_exists($row, 'data') ? ($row->data['description'] ?? null) : null,
-        ];
-        $normalized = $this->normalizer->normalize($row, 'array', ['groups' => ['row.read', 'row.images']]);
-        $doc = array_merge($doc, $row->data, $normalized);
-        $doc['data'] = []; // will be removed
-        unset($doc['data']);
-        // for debugging
-//        $doc['raw'] = $row['raw'];
+        $model = $this->mapper->map(
+            modelClass: $class,
+            persistedFields: $persisted,
+            ctx: $ctx,
+            row: $row,
+            indexedLocale: $indexedLocale,
+            sourceLocale: $sourceLocale
+        );
 
+        // Normalize model to array (what Meili receives)
+        $doc = $this->normalizer->normalize($model, 'array');
 
-//        $creators = $this->events->creatorsOf($ctx, $row);
-//        $doc['created_by'] = array_values(array_filter(array_map(
-//            fn(Row $r) => property_exists($r, 'label') ? $r->label : null,
-//            $creators
-//        )));
+        // Safety: ensure PK always present
+        if (!isset($doc['id'])) {
+            $doc['id'] = (string) $row->id;
+        }
 
-//        $years = $this->events->createdYears($ctx, $row);
-//        $doc['created_at']      = $years ? min($years) : null;
-//        $doc['created_on_date'] = $this->events->firstCreatedDate($ctx, $row);
-        $doc = SurvosUtils::removeNullsAndEmptyArrays($doc);
-
-        return $doc;
+        return is_array($doc) ? $doc : [];
     }
 }

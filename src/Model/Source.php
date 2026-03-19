@@ -8,7 +8,7 @@ class Source
         public ?string $dir=null,
         public string $label = '',
         public string $description = 'source description',
-        public ?string $locale = null, // in case it's not known during load.
+//        public ?string $locale = null, // in case it's not known during load.
         public string $units = 'cm',
         public string $country = 'us',
         public ?string $origin=null,

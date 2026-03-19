@@ -75,7 +75,7 @@
 												</div>
                         <div class="flex-grow-1">
                             <h6 class="mb-1">
-                                <a href="{{ path('pixie_homepage', {pixieCode: config.code}) }}" class="text-dark text-decoration-none">
+                                <a href="{{ path('pixie_dashboard', {pixieCode: config.code}) }}" class="text-dark text-decoration-none">
                                     {{ config.code }}
                                 </a>
                             </h6>
@@ -83,7 +83,7 @@
 
                             <p class="mb-0">
                                 {% if config.pixieFilename|file_exists %}
-                                <a href="{{ path('pixie_homepage', {pixieCode: pixieCode}) }}" class="text-decoration-none"><small>Show</small></a>
+                                <a href="{{ path('pixie_dashboard', {pixieCode: pixieCode}) }}" class="text-decoration-none"><small>Show</small></a>
                                 {% else %}
                             </p>
                             <p class="text-muted text-truncate-two-lines mb-0">

@@ -6,30 +6,10 @@ namespace Survos\PixieBundle\Dto\Attributes;
 use Attribute;
 
 /**
- * Map a DTO property from a source payload and annotate Meili metadata.
+ * @deprecated Use Survos\ImportBundle\Dto\Attributes\Map instead.
+ *             Kept for backward compatibility with existing pixie-bundle DTOs.
  */
 #[Attribute(Attribute::TARGET_PROPERTY)]
-final class Map
+final class Map extends \Survos\ImportBundle\Dto\Attributes\Map
 {
-    /**
-     * @param array<string> $when
-     * @param array<string> $except
-     */
-    public function __construct(
-        public ?string $source = null,
-        public ?string $regex  = null,
-        public ?string $if     = null,
-        public ?string $delim  = null,
-
-        // Mapping control
-        public int $priority   = 10,
-        public array $when     = [],
-        public array $except   = [],
-
-        // Meili metadata
-        public bool $facet        = false,   // filterableAttributes
-        public bool $sortable     = false,   // sortableAttributes
-        public bool $searchable   = false,   // searchableAttributes
-        public bool $translatable = false,   // helpful for your translation pipeline
-    ) {}
 }

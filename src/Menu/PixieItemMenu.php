@@ -2,19 +2,19 @@
 
 namespace Survos\PixieBundle\Menu;
 
-use Survos\BootstrapBundle\Event\KnpMenuEvent;
-use Survos\BootstrapBundle\Service\MenuService;
-use Survos\BootstrapBundle\Traits\KnpMenuHelperInterface;
-use Survos\BootstrapBundle\Traits\KnpMenuHelperTrait;
+use Survos\TablerBundle\Event\MenuEvent;
+use Survos\TablerBundle\Service\MenuService;
+use Survos\TablerBundle\Traits\KnpMenuHelperInterface;
+use Survos\TablerBundle\Menu\MenuBuilderTrait;
 use Survos\PixieBundle\Service\PixieService;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
-final class PixieItemMenu implements KnpMenuHelperInterface
+final class PixieItemMenu
 {
-    use KnpMenuHelperTrait;
+    use MenuBuilderTrait;
 
     public function __construct(
         #[Autowire('%kernel.environment%')] protected string $env,
@@ -23,9 +23,9 @@ final class PixieItemMenu implements KnpMenuHelperInterface
     ) {
     }
 
-    #[AsEventListener(event: KnpMenuEvent::PAGE_MENU)]
-    #[AsEventListener(event: KnpMenuEvent::SIDEBAR_MENU)]
-    public function pixiePageMenu(KnpMenuEvent $event): void
+    #[AsEventListener(event: MenuEvent::PAGE)]
+    #[AsEventListener(event: MenuEvent::SIDEBAR_MENU)]
+    public function pixiePageMenu(MenuEvent $event): void
     {
         // there must be a pixie.  Messy, because this goes in app, need to add it to the config in pixie
         $menu = $event->getMenu();

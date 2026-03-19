@@ -3,14 +3,14 @@ declare(strict_types=1);
 
 namespace Survos\PixieBundle\Event;
 
-use Survos\PixieBundle\Entity\Owner;
+use Survos\PixieBundle\Entity\Inst;
 use Survos\PixieBundle\Service\IndexNamingService;
 use Symfony\Contracts\EventDispatcher\Event;
 
 class IndexCompletedEvent extends Event
 {
     public function __construct(
-        private Owner $owner,
+        private Inst $inst,
         private string $locale,
         private int $documentCount,
         private ?string $taskId = null,
@@ -18,7 +18,7 @@ class IndexCompletedEvent extends Event
         private array $additionalData = []
     ) {}
 
-    public function getOwner(): Owner
+    public function getOwner(): Inst
     {
         return $this->owner;
     }

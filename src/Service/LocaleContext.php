@@ -1,5 +1,4 @@
 <?php
-// packages/pixie-bundle/src/Service/LocaleContext.php
 declare(strict_types=1);
 
 namespace Survos\PixieBundle\Service;
@@ -16,9 +15,9 @@ final class LocaleContext
     private array $enabled;
 
     public function __construct(
-        private ?LocaleAwareInterface $translator = null,      // e.g. the "translator" service (optional)
-        private ?LocaleSwitcher $switcher = null,              // e.g. "locale.switcher" (optional)
-        ?ParameterBagInterface $params = null                  // to read kernel params without attributes
+        private ?LocaleAwareInterface $translator = null,
+        private ?LocaleSwitcher $switcher = null,
+        ?ParameterBagInterface $params = null
     ) {
         $this->default = (string) ($params?->get('kernel.default_locale') ?? 'en');
         $enabled = $params?->get('kernel.enabled_locales') ?? [];
@@ -27,7 +26,6 @@ final class LocaleContext
         $this->current = $this->default;
         \Locale::setDefault($this->current);
 
-        // If available, keep framework services in sync
         if ($this->switcher) {
             $this->switcher->setLocale($this->current);
         } elseif ($this->translator) {
@@ -38,6 +36,19 @@ final class LocaleContext
     public function get(): string
     {
         return $this->current;
+    }
+
+    public function getDefault(): string
+    {
+        return $this->default;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getEnabled(): array
+    {
+        return array_values($this->enabled);
     }
 
     public function set(string $locale): void
@@ -55,9 +66,6 @@ final class LocaleContext
         }
     }
 
-    /**
-     * Temporarily run code under a specific locale and restore afterwards.
-     */
     public function run(string $locale, callable $callback): mixed
     {
         $prev = $this->get();

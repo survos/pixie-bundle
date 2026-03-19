@@ -7,7 +7,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Survos\PixieBundle\Repository\CoreDefinitionRepository;
 
 #[ORM\Entity(repositoryClass: CoreDefinitionRepository::class)]
-#[ORM\Table(name: 'pixie_core_definition')]
+#[ORM\Table(name: 'core_def')]
 class CoreDefinition
 {
     #[ORM\Id]

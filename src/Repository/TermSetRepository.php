@@ -1,0 +1,19 @@
+<?php
+declare(strict_types=1);
+
+namespace Survos\PixieBundle\Repository;
+
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+use Survos\PixieBundle\Entity\TermSet;
+
+/**
+ * @extends ServiceEntityRepository<TermSet>
+ */
+final class TermSetRepository extends ServiceEntityRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, TermSet::class);
+    }
+}

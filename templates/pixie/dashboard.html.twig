@@ -1,71 +1,245 @@
-{#{% extends '@SurvosPixie/tabler/base.html.twig' %}#}
 {% extends 'base.html.twig' %}
 
 {% block title %}Pixie: {{ pixieCode }}{% endblock %}
 
 {% block body %}
-<div class="page-header d-print-none">
-  <div class="container-xl">
-    <div class="row g-2 align-items-center">
-      <div class="col">
-        <h2 class="page-title">
-          Pixie Overview: <code>{{ pixieCode }}</code>
-        </h2>
-        <div class="text-muted mt-1">
-          {{ conf.source.label ?? conf.code }} • locale: <span class="badge bg-blue-lt">{{ conf.source.locale ?? 'n/a' }}</span>
-          • origin: {{ source.origin ?? 'n/a' }}
+
+    <div class="page-header d-print-none">
+        <div class="container-xl">
+            <div class="row g-2 align-items-center">
+                <div class="col">
+                    <h2 class="page-title">
+                        Pixie Overview: <code>{{ pixieCode }}</code>
+                    </h2>
+                    <div class="text-muted mt-1">
+                        {{ conf.source.label ?? conf.code }} • locale:
+                        <span class="badge bg-blue-lt">{{ conf.source.locale ?? 'n/a' }}</span>
+                        • origin: {{ conf.source.origin ?? 'n/a' }}
+                    </div>
+                </div>
+                <div class="col-auto ms-auto d-print-none">
+                    {# Optional: wire this later if you keep a dedicated schema route #}
+                    {# <a class="btn btn-primary" href="{{ path('pixie_schema_compiled', {'pixieCode': pixieCode}) }}">Schema</a> #}
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="col-auto ms-auto d-print-none">
-        <a class="btn btn-primary" href="{{ path('pixie_schema', {'pixieCode': pixieCode}) }}">Schema</a>
-      </div>
     </div>
-  </div>
-</div>
 
-<div class="page-body">
-  <div class="container-xl">
-    <div class="row row-deck row-cards">
+    <div class="page-body">
+        <div class="container-xl">
 
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-status-top bg-blue"></div>
-          <div class="card-header">
-            <h3 class="card-title">About</h3>
-          </div>
-          <div class="card-body">
-            <p class="text-muted mb-2">{{ source.description ?? '—' }}</p>
-            <ul class="list-unstyled">
-              <li><strong>Datasource:</strong> {{ source.origin ?? '—' }}</li>
-              <li><strong>Locale:</strong> {{ source.locale ?? '—' }}</li>
-{#              <li><strong>DB file:</strong> <code>{{ dbFile|replace({(app.project_dir~'/'): ''}) }}</code></li>#}
-              <li><strong>DB size:</strong> {{ (dbSize / 1024 / 1024)|number_format(2) }} MB</li>
-            </ul>
-          </div>
+            {% set reqLocale = app.request.locale %}
+            {% set sourceLocale = config.sourceLocale %}
+            {% set targetLocales = config.targetLocales %}
+
+            <div class="card mb-3">
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <div>
+                            <span class="text-muted">Locale</span>
+                            <strong class="ms-1">{{ reqLocale }}</strong>
+                            {% if sourceLocale and reqLocale == sourceLocale %}
+                                <span class="badge bg-secondary ms-2">source</span>
+                            {% endif %}
+                        </div>
+
+                        {% if sourceLocale %}
+                            <div>
+                                <span class="text-muted">Source</span>
+                                <strong class="ms-1">{{ sourceLocale }}</strong>
+                            </div>
+                        {% endif %}
+
+                        <div>
+                            <span class="text-muted">Targets</span>
+                            {% if targetLocales is iterable and targetLocales|length %}
+                                <strong class="ms-1">{{ targetLocales|join(', ') }}</strong>
+                                {% if reqLocale and (reqLocale in targetLocales) %}
+                                    <span class="badge bg-success ms-2">active target</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted ms-1">none</span>
+                            {% endif %}
+                        </div>
+
+                        {# Optional: quick hint if current locale isn't configured #}
+                        {% if sourceLocale and targetLocales is iterable %}
+                            {% set configuredLocales = [sourceLocale]|merge(targetLocales) %}
+                            {% if reqLocale not in configuredLocales %}
+                                <div class="ms-auto">
+                                    <span class="badge bg-warning text-dark">
+                                      Current locale ({{ reqLocale }}) not in pixie babel config
+                                    </span>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row row-deck row-cards">
+
+                {# About (narrowed to make room for TermSets + Cores side-by-side) #}
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-status-top bg-blue"></div>
+                        <div class="card-header">
+                            <h3 class="card-title">About</h3>
+                            @note: this is config.source, NOT the owner entity. So no translations
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-2">{{ conf.source.description ?? '—' }}</p>
+                            <ul class="list-unstyled">
+                                <li><strong>Datasource:</strong> {{ conf.source.origin ?? '—' }}</li>
+                                <li><strong>DB size:</strong> {{ (dbSize / 1024 / 1024)|number_format(2) }} MB</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                {# NEW: TermSets (next to Cores) #}
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-status-top bg-azure"></div>
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                TermSets
+                                {% if termSetsData is defined %}
+                                    <span class="badge bg-azure-lt ms-2">{{ termSetsData|length }}</span>
+                                {% endif %}
+                            </h3>
+                            <div class="card-subtitle text-muted">
+                                Primary navigation for now (temporarily using TermSets, not cores).
+                            </div>
+                        </div>
+
+                        <div class="list-group list-group-flush">
+                            {% for item in termSetsData|default([]) %}
+                                {% set ts = item.termSet %}
+                                {% set tsId = ts.id ?? (ts.getId() ?? null) %}
+                                <a class="list-group-item list-group-item-action py-2 d-flex justify-content-between align-items-center"
+                                   href="{{ path('pixie_termset_browse', {pixieCode: pixieCode, termSetId: tsId}) }}">
+                                    <span class="text-truncate">
+                                        <span class="badge me-2">{{ loop.index }}</span>
+                                        {{ ts.code ?? ts.id ?? tsId }}
+                                    </span>
+                                    <span class="text-muted">{{ item.count|default(0)|number_format(0) }}</span>
+                                </a>
+
+                                {% if item.topTerms is defined and item.topTerms|length %}
+                                    <div class="px-3 pb-2">
+                                        <div class="text-muted small mb-1">Top terms</div>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {% for t in item.topTerms %}
+                                                <span class="badge bg-azure-lt">
+                                                    {{ t.label ?? t.rawLabel ?? t.code ?? t.id }}
+                                                    {% if t.count is defined and t.count is not null %}
+                                                        <span class="text-muted ms-1">{{ t.count }}</span>
+                                                    {% endif %}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <div class="list-group-item text-muted">No term sets yet.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                {# Cores (now 1/3 width; you can later hide entirely if termsets replace cores) #}
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-status-top bg-green"></div>
+                        <div class="card-header">
+                            <h3 class="card-title">Cores</h3>
+                        </div>
+
+                        <div class="list-group list-group-flush">
+                            {% for item in rowsByCore %}
+                                <a class="list-group-item list-group-item-action py-1 d-flex justify-content-between align-items-center"
+                                   href="{{ path('pixie_core_browse', {pixieCode: pixieCode, coreCode: item.core.id}) }}">
+                                    <span>
+                                      <span class="badge me-2">{{ loop.index }}</span>
+                                      {{ item.core.code }}
+                                    </span>
+                                    <span class="text-muted">{{ item.count|number_format(0) }}</span>
+                                </a>
+                            {% else %}
+                                <div class="list-group-item text-muted">No cores yet.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                {# Schema / Config-driven field listing #}
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-status-top bg-purple"></div>
+                        <div class="card-header">
+                            <h3 class="card-title">Schema</h3>
+                            <div class="card-subtitle text-muted">
+                                From YAML config (and compiled schema if present). Translatable fields are highlighted.
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-vcenter table-striped mb-0">
+                                <thead>
+                                <tr>
+                                    <th style="width: 120px;">Core</th>
+                                    <th style="width: 120px;">Status</th>
+                                    <th style="width: 240px;">Translatable</th>
+                                    <th>Properties</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for coreCode, table in rowsByCore %}
+                                    {# Find DB info, if core exists in rowsByCore #}
+                                    {% set dbItem = null %}
+                                    {% for item in rowsByCore %}
+                                        {% if item.core.code == coreCode %}
+                                            {% set dbItem = item %}
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    <tr>
+                                        <td>
+                                            <code>{{ coreCode }}</code>
+                                        </td>
+
+                                        <td>
+                                            {% if dbItem %}
+                                                <span class="badge bg-green-lt">in DB</span>
+                                                <span class="text-muted ms-2">{{ dbItem.count|number_format(0) }}</span>
+                                            {% else %}
+                                                <span class="badge bg-yellow-lt">config only</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                        {# disabled schema td #}
+
+                                        <td>
+                                        {# disabled schema td #}
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="card-footer text-muted">
+                            Notes:
+                            <ul class="mb-0">
+                                <li><strong>Translatable</strong> comes from <code>tables.&lt;core&gt;.translatable</code> in YAML.</li>
+                                <li>Properties are still evolving (YAML vs DTO-driven schema); this view reflects what is currently configured.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
-      </div>
-
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-status-top bg-green"></div>
-          <div class="card-header">
-            <h3 class="card-title">Cores</h3>
-          </div>
-          <div class="list-group list-group-flush">
-            {% for item in rowsByCore %}
-              <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                 href="{{ path('pixie_core_browse', {pixieCode: pixieCode, coreCode: item.core.id}) }}">
-                <span><span class="badge me-2">{{ loop.index }}</span> {{ item.core.coreCode }}</span>
-                <span class="text-muted">{{ item.count|number_format(0) }}</span>
-              </a>
-            {% else %}
-              <div class="list-group-item text-muted">No cores yet.</div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-
     </div>
-  </div>
-</div>
 {% endblock %}

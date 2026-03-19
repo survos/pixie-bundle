@@ -6,21 +6,17 @@ use Psr\Log\LoggerInterface;
 use Survos\PixieBundle\Service\PixieImportService;
 use Survos\PixieBundle\Service\PixieService;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
+use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Serializer\SerializerInterface;
-use Zenstruck\Console\Attribute\Argument;
-use Zenstruck\Console\Attribute\Option;
-use Zenstruck\Console\InvokableServiceCommand;
-use Zenstruck\Console\IO;
-use Zenstruck\Console\RunsCommands;
-use Zenstruck\Console\RunsProcesses;
+use Symfony\Component\Console\Attribute\Argument;
+use Symfony\Component\Console\Attribute\Option;
 
 #[AsCommand('pixie:export', "Export a table to csv/json")]
-final class PixieExportCommand extends InvokableServiceCommand
+final class PixieExportCommand
 {
-    use RunsCommands;
-    use RunsProcesses;
 
     private bool $initialized = false; // so the event listener can be called from outside the command
     private ProgressBar $progressBar;
@@ -30,16 +26,13 @@ final class PixieExportCommand extends InvokableServiceCommand
         private ParameterBagInterface $bag,
         private readonly PixieService $pixieService,
         private SerializerInterface $serializer,
+        private PixieImportService                                                      $pixieImportService,
     )
     {
-
-        parent::__construct();
     }
 
     public function __invoke(
-        IO                                                                      $io,
-        PixieService                                                            $pixieService,
-        PixieImportService                                                      $pixieImportService,
+        SymfonyStyle                                                                      $io,
         #[Argument(description: 'config code')] ?string                         $configCode,
         #[Argument(description: 'table name')] ?string                          $tableName,
         #[Option(description: 'output directory/filename')] ?string             $dirOrFilename,
@@ -53,11 +46,11 @@ final class PixieExportCommand extends InvokableServiceCommand
     {
         $configCode ??= getenv('PIXIE_CODE');
         $this->initialized = true;
-        $kv = $pixieService->getStorageBox($configCode);
-        $config = $pixieService->selectConfig($configCode);
+        $kv = $this->pixieService->getStorageBox($configCode);
+        $config = $this->pixieService->selectConfig($configCode);
         assert($config, $config->getConfigFilename());
         if (empty($dirOrFilename)) {
-            $dirOrFilename = $pixieService->getSourceFilesDir($configCode);
+            $dirOrFilename = $this->pixieService->getSourceFilesDir($configCode);
         }
 
         assert($kv->tableExists($tableName), "Missing table $tableName: \n".implode("\n", $kv->getTableNames()));
@@ -87,14 +80,14 @@ final class PixieExportCommand extends InvokableServiceCommand
         // Entity databases go in datadir, not with their source? Or defined in the config
         if (!is_dir($dirOrFilename)) {
             $io->error("$dirOrFilename does not exist.  set the directory in config or pass it as the first argument");
-            return self::FAILURE;
+            return Command::FAILURE;
         }
 
 
         // export?
 
         $io->success('Entity:export success ' . $configCode);
-        return self::SUCCESS;
+        return Command::SUCCESS;
     }
 
 

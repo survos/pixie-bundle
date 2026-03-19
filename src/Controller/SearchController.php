@@ -7,7 +7,7 @@ namespace Survos\PixieBundle\Controller;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\IriConverterInterface;
 use App\Entity\MeiliItem;
-use App\Entity\Owner;
+use App\Entity\Inst;
 use App\Form\LabelFormType;
 use Survos\ApiGrid\Model\Column;
 use Survos\MeiliBundle\Service\MeiliService;
@@ -203,7 +203,7 @@ class SearchController extends AbstractController
     public function labels(Request $request,
                            string $tableName,
                            string $pixieCode,
-                           Owner $owner,
+                           Inst $inst,
                            #[MapQueryParameter] ?string $q=null,
                            #[MapQueryParameter] array $ff=[], // filters
     ): Response
@@ -253,7 +253,7 @@ class SearchController extends AbstractController
     public function slideshow(Request $request,
                                  string $tableName,
                                  string $pixieCode,
-                                 Owner $owner): Response
+                                 Inst $inst): Response
     {
         // pixieCode should allow slashes for subCode, this won't work with md
         $pixieCode = $owner->getPixieCode();
@@ -278,7 +278,7 @@ class SearchController extends AbstractController
     public function label_report(Request $request,
                                  string $tableName,
                                  string $pixieCode,
-                                 Owner $owner): Response
+                                 Inst $inst): Response
     {
         // pixieCode should allow slashes for subCode, this won't work with md
         $pixieCode = $owner->getPixieCode();

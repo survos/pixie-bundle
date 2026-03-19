@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace Survos\PixieBundle\Service;
 
 use Survos\PixieBundle\Dto\Attributes\Core as CoreAttr;
-use Survos\PixieBundle\Dto\Attributes\Map as MapAttr;
+use Survos\ImportBundle\Dto\Attributes\Map as MapAttr;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionNamedType;

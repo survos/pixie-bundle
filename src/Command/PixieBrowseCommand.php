@@ -10,6 +10,7 @@ use Survos\PixieBundle\Service\PixieService;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
@@ -65,13 +66,13 @@ final class PixieBrowseCommand
         // Print each projected document
         $jsonFlags = $pretty ? (JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : 0;
         foreach ($rows as $row) {
-            $doc = $this->projector->project($row, $locale);
+            $doc = $this->projector->project($ctx, $row, $locale);
             $io->writeln(json_encode($doc, $jsonFlags));
             if ($pretty) {
                 $io->newLine();
             }
         }
 
-        return 0;
+        return Command::SUCCESS;
     }
 }

@@ -2,7 +2,10 @@
 
 namespace Survos\PixieBundle\Twig;
 
+use ApiPlatform\Metadata\UrlGeneratorInterface;
+use Survos\MeiliBundle\Service\MeiliService;
 use Survos\PixieBundle\Meta\PixieInterface;
+use Survos\PixieBundle\Service\PixieMeiliSettingsFromConfig;
 use Survos\PixieBundle\Service\PixieService;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -13,7 +16,8 @@ use Twig\TwigFunction;
 class TwigExtension extends AbstractExtension
 {
     public function __construct(
-        private readonly PixieService $pixieService,
+        private PixieMeiliSettingsFromConfig $pixieMeili,
+        private UrlGeneratorInterface $urlGenerator,
         private readonly ?RequestStack $requestStack=null,
 //        #[Autowire('locale')] private string $locale
     )
@@ -58,7 +62,14 @@ class TwigExtension extends AbstractExtension
     public function getFunctions(): array
     {
         return [
-//            new TwigFunction('function_name', [::class, 'doSomething']),
+            new TwigFunction('insta_url', [$this, 'searchUrl']),
         ];
+    }
+
+    public function searchUrl(string $pixieCode, ?string $locale=null): ?string
+    {
+//        $indexName = $this->pixieMeili->indexName($pixieCode, $locale);
+        return $this->urlGenerator->generate('meili_insta', ['indexName' => $pixieCode, '_locale' => $locale]);
+
     }
 }

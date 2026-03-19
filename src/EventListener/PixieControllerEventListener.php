@@ -24,7 +24,7 @@ final class PixieControllerEventListener
     public function onKernelController(ControllerEvent $event): void
     {
         $request = $this->requestStack->getCurrentRequest();
-        $pixieCode =  $request->get('pixieCode');
+        $pixieCode =  $request?->attributes->get('pixieCode');
         if ($pixieCode) {
             // maybe...
 //            $this->pixieService->selectConfig($pixieCode);

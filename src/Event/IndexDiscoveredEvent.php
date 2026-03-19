@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Survos\PixieBundle\Event;
 
-use Survos\PixieBundle\Entity\Owner;
+use Survos\PixieBundle\Entity\Inst;
 use Symfony\Contracts\EventDispatcher\Event;
 
 class IndexDiscoveredEvent extends Event
@@ -15,6 +15,6 @@ class IndexDiscoveredEvent extends Event
         public readonly int $documentCount = 0,
         public readonly ?\DateTime $lastUpdate = null,
         public readonly array $indexStats = [],
-        public readonly ?Owner $owner = null,
+        public readonly ?Inst $inst = null,
     ) {}
 }

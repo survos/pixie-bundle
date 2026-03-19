@@ -10,11 +10,11 @@ use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Psr\Log\LoggerInterface;
-use Survos\BootstrapBundle\Event\KnpMenuEvent;
+use Survos\TablerBundle\Event\MenuEvent;
 use Survos\PixieBundle\CsvSchema\Parser;
 use Survos\PixieBundle\Debug\TraceableStorageBox;
 use Survos\PixieBundle\Entity\Core;
-use Survos\PixieBundle\Entity\Owner;
+use Survos\PixieBundle\Entity\Inst;
 use Survos\PixieBundle\Entity\Row;
 use Survos\PixieBundle\Event\StorageBoxEvent;
 use Survos\PixieBundle\Message\PixieTransitionMessage;
@@ -271,15 +271,15 @@ class PixieServiceBase
                 $pixie['tables'][$tableName]['name'] = $tableName;
             }
 
-            $type = $this->propertyInfo->getType(Config::class, 'tables');
+//            $type = $this->propertyInfo->getType(Config::class, 'tables');
 
             $config = $this->serializer->denormalize($pixie, Config::class);
-            $config->setPixieFilename($this->getPixieFilename($code));
+            $config->pixieFilename =  $this->getPixieFilename($code);
             $config->code = $code;
 
 
             // eh.
-            $resolvedDataPath = $this->resolveFilename($config->getSourceFilesDir(), 'data');
+            $resolvedDataPath = $this->resolveFilename($config->dataDir, 'data');
             $config->dataDir = $resolvedDataPath;
 
             $configs[$code] = $config;
@@ -349,30 +349,34 @@ class PixieServiceBase
     public function getCoreInContext(PixieContext $ctx, string $tableName, bool $autoCreate = false): ?Core
     {
         $em = $ctx->em;
-        $coreRepo = $em->getRepository(Core::class);
+        $coreRepo = $ctx->repo(Core::class);
+        $owner = $ctx->repo(Inst::class)->find($ctx->pixieCode);
+        if (!$owner) {
+            return null;
+        }
+        assert($owner);
 
         // Make sure we have a managed Owner proxy now
-        if (!$ctx->ownerRef) {
-            assert(false, "ctx must have an owner");
-            // Owner must already exist; error out if not.
-            $exists = (bool)$em->getConnection()->fetchOne(
-                'SELECT 1 FROM owner WHERE id = ?', [$ctx->pixieCode]
-            );
-            if (!$exists) {
-                throw new \RuntimeException("Owner '{$ctx->pixieCode}' not found in current pixie DB.");
-            }
-            $ctx->ownerRef = $em->getReference(Owner::class, $ctx->pixieCode);
-        }
+//        if (!$ctx->ownerRef) {
+//            assert(false, "ctx must have an owner");
+//            // Owner must already exist; error out if not.
+//            $exists = (bool)$em->getConnection()->fetchOne(
+//                'SELECT 1 FROM inst WHERE id = ?', [$ctx->pixieCode]
+//            );
+//            if (!$exists) {
+//                throw new \RuntimeException("Owner '{$ctx->pixieCode}' not found in current pixie DB.");
+//            }
+//            $ctx->ownerRef = $em->getReference(Inst::class, $ctx->pixieCode);
+//        }
 
         $core = $coreRepo->findOneBy(['code' => $tableName]);
         if ($autoCreate) {
             if (!$core) {
-                $core = new Core($tableName, $tableName);
-                $ctx->ownerRef->addCore($core);
-                $core->owner = $ctx->ownerRef;             // owning side
+                $core = new Core($tableName, $tableName, $owner);
+                $owner->addCore($core);
                 $em->persist($core);
             } elseif ($core->owner === null) {
-                $core->owner = $ctx->ownerRef;             // repair if missing
+                $core->owner = $owner;             // repair if missing
             }
         }
 
@@ -389,7 +393,7 @@ class PixieServiceBase
         return $ctx;
     }
 
-    public function getCore(string $tableName, string|Owner $ownerInput): Core
+    public function getCore(string $tableName, string|Inst $ownerInput): Core
     {
         $ownerCode = \is_string($ownerInput) ? $ownerInput : (string)$ownerInput->code;
 
@@ -424,10 +428,10 @@ class PixieServiceBase
         $coreRepo = $em->getRepository(Core::class);
 
         // 3) Get a MANAGED Owner reference in THIS EM
-        $ownerRef = $em->getReference(Owner::class, $ownerId); // lightweight, no SELECT unless needed
+        $ownerRef = $em->getReference(Inst::class, $ownerId); // lightweight, no SELECT unless needed
 
         // (Optional) sanity: ensure the owner row exists in this DB
-        // $exists = (bool)$em->getConnection()->fetchOne('SELECT 1 FROM owner WHERE id = ?', [$ownerId]);
+        // $exists = (bool)$em->getConnection()->fetchOne('SELECT 1 FROM inst WHERE id = ?', [$ownerId]);
         // if (!$exists) { throw new \RuntimeException("Owner '$ownerId' not found in current DB"); }
 
         // 4) Find Core by code (code is unique). Prefer also scoping by owner if code isn’t truly global.
@@ -449,8 +453,8 @@ class PixieServiceBase
     public function attachOwnerRef(PixieContext $ctx): void
     {
         $exists = (bool)$ctx->em->getConnection()
-            ->fetchOne('SELECT 1 FROM owner WHERE id = ?', [$ctx->pixieCode]);
-        $ctx->ownerRef = $exists ? $ctx->em->getReference(Owner::class, $ctx->pixieCode) : null;
+            ->fetchOne('SELECT 1 FROM inst WHERE id = ?', [$ctx->pixieCode]);
+        $ctx->ownerRef = $exists ? $ctx->em->getReference(Inst::class, $ctx->pixieCode) : null;
     }
 
 
@@ -503,7 +507,7 @@ class PixieServiceBase
 
         // 3) Optionally attach Owner (if present in this pixie DB)
         try {
-            $owner = $em->getRepository(\Survos\PixieBundle\Entity\Owner::class)->find($pixieCode);
+            $owner = $em->getRepository(\Survos\PixieBundle\Entity\Inst::class)->find($pixieCode);
             if ($owner) {
                 $config->setOwner($owner);
             }
@@ -541,9 +545,23 @@ class PixieServiceBase
         return $this->addProjectDir($this->dataRoot);
     }
 
-    public function getPixieDbDir()
+    public function getPixieDbDir(): string
     {
-        return $this->addProjectDir($this->dbDir);
+        $dir = $this->dbDir;
+
+        // Resolve %env(VAR)%/suffix patterns not resolved by container
+        // e.g. '%env(APP_DATA_DIR)%/pixie' → '/media/tac/.../mus/pixie'
+        if (preg_match('/%env\(([^)]+)\)%(.*)/', $dir, $m)) {
+            $envVal = getenv($m[1]) ?: ($_ENV[$m[1]] ?? $_SERVER[$m[1]] ?? null);
+            if ($envVal !== null && $envVal !== false) {
+                $dir = rtrim((string)$envVal, '/') . $m[2];
+            }
+        }
+
+        if (str_starts_with($dir, '/')) {
+            return $dir;
+        }
+        return $this->projectDir . '/' . $dir;
     }
 
     public function addProjectDir(string $s): string
@@ -746,15 +764,12 @@ class PixieServiceBase
 
     public function dbName(string $code, bool $throwErrorIfMissing = false): string
     {
-        //dd($this->pixieTemplateUrl);
-        $params = $this->pixieEntityManager->getConnection()->getParams();
-        //$dbName = str_replace('pixie_template', $code, $params['path']);
-        $dbName = str_replace(pathinfo($params['path'], PATHINFO_FILENAME), $code, $params['path']);
+        // Use getPixieFilename() which correctly resolves APP_DATA_DIR/pixie/<code>.db
+        $dbName = $this->getPixieFilename($code);
         if ($throwErrorIfMissing) {
             assert(file_exists($dbName), $dbName);
         }
         return $dbName;
-
     }
 
 
@@ -793,7 +808,7 @@ class PixieServiceBase
     {
         $sm = $em->getConnection()->createSchemaManager();
         // Bootstrap check on a canonical table
-        if ($sm->tablesExist(['owner'])) {
+        if ($sm->tablesExist(['inst'])) {
             return;
         }
 
@@ -909,8 +924,8 @@ class PixieServiceBase
         $config = $this->buildConfigSnapshot($pixieCode, $em);
 
         $ownerRef = null;
-        if ((bool)$em->getConnection()->fetchOne('SELECT 1 FROM owner WHERE id = ?', [$pixieCode])) {
-            $ownerRef = $em->getReference(Owner::class, $pixieCode);
+        if ((bool)$em->getConnection()->fetchOne('SELECT 1 FROM inst WHERE id = ?', [$pixieCode])) {
+            $ownerRef = $em->getReference(Inst::class, $pixieCode);
         }
 
         $this->currentPixieCode = $pixieCode;
@@ -929,8 +944,8 @@ class PixieServiceBase
         $config = $this->buildConfigSnapshot($pixieCode, $em); // <- from current EM
 
         $ownerRef = null;
-        if ((bool)$em->getConnection()->fetchOne('SELECT 1 FROM owner WHERE id = ?', [$pixieCode])) {
-            $ownerRef = $em->getReference(Owner::class, $pixieCode);
+        if ((bool)$em->getConnection()->fetchOne('SELECT 1 FROM inst WHERE id = ?', [$pixieCode])) {
+            $ownerRef = $em->getReference(Inst::class, $pixieCode);
         }
 
         $this->currentPixieCode = $pixieCode;
@@ -952,8 +967,8 @@ class PixieServiceBase
 //
 //        // 4) Owner proxy (if the row exists)
 //        $ownerRef = null;
-//        if ((bool)$em->getConnection()->fetchOne('SELECT 1 FROM owner WHERE id = ?', [$pixieCode])) {
-//            $ownerRef = $em->getReference(Owner::class, $pixieCode);
+//        if ((bool)$em->getConnection()->fetchOne('SELECT 1 FROM inst WHERE id = ?', [$pixieCode])) {
+//            $ownerRef = $em->getReference(Inst::class, $pixieCode);
 //        }
 //
 //        // 5) Remember for contextFor()/setCurrentPixieCode()

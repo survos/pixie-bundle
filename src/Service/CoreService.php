@@ -33,7 +33,7 @@ use Survos\PixieBundle\Entity\FieldSet;
 use Survos\PixieBundle\Entity\Instance;
 use Survos\PixieBundle\Entity\InstanceCategory;
 use Survos\PixieBundle\Entity\InstanceInterface;
-use Survos\PixieBundle\Entity\Owner;
+use Survos\PixieBundle\Entity\Inst;
 use Survos\PixieBundle\Repository\CoreRepository;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
@@ -654,7 +654,7 @@ class CoreService
     /**
      * @param mixed $tableName
      */
-    public function getCore(string $tableName, ?Owner $owner=null): Core
+    public function getCore(string $tableName, ?Inst $inst=null): Core
     {
         assert(false, "get from pixieservice");
         // switch the database
