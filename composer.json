@@ -25,7 +25,7 @@
         "symfony/http-client-contracts": "^3.5",
         "symfony/http-client": "^8.0",
         "symfony/asset": "^8.0",
-        "illuminate/collections": "^12",
+        "illuminate/collections": "^12|^13",
         "symfony/object-mapper": "^8.0",
         "symfony/console": "^8.0",
         "survos/babel-bundle": "^2.0",
