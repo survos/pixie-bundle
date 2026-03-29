@@ -18,11 +18,11 @@
     },
     "importmap": {
       "@hotwired/stimulus": "^3.2.2",
-      "apexcharts": "^4.3"
+      "apexcharts": "^5.10.4"
     }
   },
   "peerDependencies": {
     "@hotwired/stimulus": "^3.2.2",
-    "apexcharts": "^4.3"
+    "apexcharts": "^5.10.4"
   }
 }
