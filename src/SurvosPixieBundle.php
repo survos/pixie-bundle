@@ -115,9 +115,11 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Twig\Environment;
 
-class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
+class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface, HasAssetMapperInterface
 {
     use HasAssetMapperTrait;
+
+    public const ASSET_NAMESPACE = '@survos/pixie';
 
     public function build(ContainerBuilder $container): void
     {
