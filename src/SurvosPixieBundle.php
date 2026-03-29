@@ -5,6 +5,7 @@
 namespace Survos\PixieBundle;
 
 use Doctrine\DBAL\Schema\Metadata\MetadataProvider;
+use Survos\CoreBundle\HasAssetMapperInterface;
 use Survos\CoreBundle\Traits\HasAssetMapperTrait;
 use Survos\MeiliBundle\Service\MeiliService;
 use Survos\PixieBundle\Command\IterateCommand;
@@ -563,12 +564,5 @@ class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface
             ->end()
             ->end()
             ->end();
-    }
-
-    public function getPaths(): array
-    {
-        $dir = realpath(__DIR__ . '/../assets/');
-        assert($dir && file_exists($dir), 'asset path must exist for the assets in ' . __DIR__);
-        return [$dir => '@survos/pixie'];
     }
 }
