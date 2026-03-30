@@ -5,8 +5,7 @@
 namespace Survos\PixieBundle;
 
 use Doctrine\DBAL\Schema\Metadata\MetadataProvider;
-use Survos\CoreBundle\HasAssetMapperInterface;
-use Survos\CoreBundle\Traits\HasAssetMapperTrait;
+use Survos\CoreBundle\Bundle\AssetMapperBundle;
 use Survos\MeiliBundle\Service\MeiliService;
 use Survos\PixieBundle\Command\IterateCommand;
 use Survos\PixieBundle\Command\PixieBabelBrowseCommand;
@@ -111,15 +110,12 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\DependencyInjection\Reference;
-use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Twig\Environment;
 
-class SurvosPixieBundle extends AbstractBundle implements CompilerPassInterface, HasAssetMapperInterface
+class SurvosPixieBundle extends AssetMapperBundle implements CompilerPassInterface
 {
-    use HasAssetMapperTrait;
-
-    public const ASSET_NAMESPACE = '@survos/pixie';
+    public const ASSET_PACKAGE = 'pixie';
 
     public function build(ContainerBuilder $container): void
     {
