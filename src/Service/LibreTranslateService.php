@@ -3,7 +3,7 @@
 namespace Survos\PixieBundle\Service;
 
 // see https://weglot.com/blog/machine-translation-software/
-use App\Entity\Instance;
+use App\Entity\Loc;
 use App\Entity\LabelInterface;
 use App\Entity\Project;
 use App\Entity\ProjectInterface;
