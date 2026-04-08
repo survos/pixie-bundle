@@ -87,7 +87,7 @@ final class PixieMigrateCommand extends Command
                 // Filesystem fallback — scan 00_meta/dataset.yaml files
                 $io->note("DatasetInfo registry empty for '{$provider}' — scanning filesystem. Run data:scan-datasets to populate registry.");
                 $providerDir = $this->dataPaths->datasetsRoot . '/' . $provider;
-                foreach (glob($providerDir . '/*/00_meta/dataset.yaml') ?: [] as $metaFile) {
+                foreach (glob($providerDir . '/*/00_meta/dataset.json') ?: [] as $metaFile) {
                     $meta = Yaml::parseFile($metaFile);
                     $datasetKey = $meta['dataset_key'] ?? null;
                     if ($datasetKey) {

@@ -16,7 +16,8 @@ final class PixieEnhanceRecordListener
     ) {
     }
 
-    #[AsEventListener(event: ImportConvertRowEvent::class)]
+
+//    #[AsEventListener(event: ImportConvertRowEvent::class)]
     public function onRow(ImportConvertRowEvent $event): void
     {
         // Dataset is the pixie code in your usage: --dataset=larco
