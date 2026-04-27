@@ -4,40 +4,16 @@ declare(strict_types=1);
 
 namespace Survos\PixieBundle\Menu;
 
-use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Survos\TablerBundle\Event\MenuEvent;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
-class PixieBundleMenuSubscriber implements EventSubscriberInterface
+class PixieBundleMenuSubscriber
 {
-    public static function getSubscribedEvents(): array
-    {
-        // Only subscribe if tabler-bundle's MenuEvent exists
-        if (!class_exists(\Survos\TablerBundle\Event\MenuEvent::class)) {
-            return [];
-        }
-
-        return [
-            \Survos\TablerBundle\Event\MenuEvent::NAVBAR_MENU => 'onNavbarMenu',
-        ];
-    }
-
-    public function onNavbarMenu($event): void
+    #[AsEventListener(event: MenuEvent::ADMIN_NAVBAR_MENU)]
+    public function onAdminNavbarMenu(MenuEvent $event): void
     {
         $menu = $event->getMenu();
-
-        // Add Pixie submenu with link to configs
-        $submenu = $this->addSubmenu($menu, 'Pixie');
-        $submenu->addChild('pixie_configs', [
-            'route' => 'pixie_browse_configs',
-            'label' => 'Configurations',
-        ]);
-    }
-
-    private function addSubmenu($menu, string $label, ?string $icon = null): mixed
-    {
-        $submenu = $menu->addChild($label);
-        if ($icon) {
-            $submenu->setAttribute('icon', $icon);
-        }
-        return $submenu;
+        $submenu = $menu->addChild('Pixie');
+        $submenu->addChild('Configurations', ['route' => 'pixie_browse_configs']);
     }
 }
