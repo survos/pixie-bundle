@@ -54,7 +54,8 @@
                 {% endblock %}
                 {% block qualifiers %}
                     {% if row.qualifiers.get('items')|length %}
-                        {{ component('grid', {useDatatables: false, data: row.qualifiers, columns: ['id','label','value']}) }}
+                        {# TODO: was the now-removed survos/api-grid `grid` component (in-memory). Re-render via api_grid + a real API endpoint when this view comes back. #}
+                        <pre class="small text-muted">{{ row.qualifiers.get('items')|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
                     {% endif %}
                 {% endblock %}
             {% endcomponent %}
@@ -63,6 +64,7 @@
     {% endif %}
 
 
+    {# TODO: was the now-removed survos/api-grid `grid` component (in-memory). Re-render via api_grid + a real API endpoint when wikiResults comes back.
     {% component grid with {
         condition: wikiResults|default([])|length,
         data: wikiResults|default([]),
@@ -94,6 +96,7 @@
             {% endif %}
         {% endblock %}
     {% endcomponent %}
+    #}
 
     {{ include('/instance/_instance_categories.html.twig') }}
 
