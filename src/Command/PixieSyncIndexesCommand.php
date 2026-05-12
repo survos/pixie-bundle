@@ -15,14 +15,13 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 #[AsCommand('pixie:sync-indexes', 'Sync Meilisearch indexes with OwnerIndex records (via dispatch)')]
-final class PixieSyncIndexesCommand extends Command
+final class PixieSyncIndexesCommand
 {
     public function __construct(
         private readonly PixieService $pixieService,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly ?MeiliService $meilisearchClient, // Inject your Meilisearch client
     ) {
-        parent::__construct();
     }
 
     public function __invoke(

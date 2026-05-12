@@ -20,7 +20,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 #[AsCommand('pixie:index', 'Project Rows and index to Meili (preflights settings first)')]
-final class PixieIndexCommand extends Command
+final class PixieIndexCommand
 {
     public function __construct(
         private readonly PixieService $pixie,
@@ -31,7 +31,6 @@ final class PixieIndexCommand extends Command
         private readonly MeiliIndexNameResolver $indexNames,
         #[Autowire('%kernel.environment%')] private readonly string $env,
     ) {
-        parent::__construct();
     }
 
     public function __invoke(

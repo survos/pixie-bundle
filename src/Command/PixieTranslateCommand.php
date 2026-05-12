@@ -34,13 +34,12 @@ Only check current status:
 HELP
 
 )]
-final class PixieTranslateCommand extends Command
+final class PixieTranslateCommand
 {
     public function __construct(
         private PixieService $pixieService,
         #[Autowire('%kernel.enabled_locales%')] private array $supportedLocales,
     ) {
-        parent::__construct();
     }
 
     public function __invoke(

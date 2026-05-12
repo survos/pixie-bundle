@@ -15,13 +15,12 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand('pixie:show', 'Show configuration, property usage, facet distributions, Meili settings, and translation-pointer coverage.')]
-final class PixieStatsShowCommand extends Command
+final class PixieStatsShowCommand
 {
     public function __construct(
         private readonly PixieService $pixie,
         private readonly ?MeiliService $meili = null,
     ) {
-        parent::__construct();
     }
 
     public function __invoke(

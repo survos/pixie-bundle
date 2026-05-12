@@ -14,7 +14,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand('pixie:meili:settings', 'Build (and optionally apply) Meili settings from DTO mappers')]
-final class PixieMeiliSettingsCommand extends Command
+final class PixieMeiliSettingsCommand
 {
     public function __construct(
         private readonly PixieService $pixies,
@@ -22,7 +22,6 @@ final class PixieMeiliSettingsCommand extends Command
         private readonly MeiliIndexer $indexer,
         private readonly MeiliIndexNameResolver $indexNames,
     ) {
-        parent::__construct();
     }
 
     public function __invoke(

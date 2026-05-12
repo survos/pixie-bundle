@@ -26,7 +26,7 @@ use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[AsCommand('pixie:media', 'dispatch to sais the original images')]
-final class PixieMediaCommand extends Command
+final class PixieMediaCommand
 {
 
 
@@ -42,7 +42,6 @@ final class PixieMediaCommand extends Command
         private readonly MessageBusInterface $messageBus,
     )
     {
-        parent::__construct();
     }
 
     public function __invoke(

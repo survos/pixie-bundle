@@ -20,7 +20,7 @@ use Symfony\Component\Yaml\Yaml;
 use Symfony\Contracts\Service\Attribute\Required;
 
 #[AsCommand('pixie:migrate', 'Create/update Pixie SQLite DB(s): schema alignment + owner/core rows (+ optional SQL views).')]
-final class PixieMigrateCommand extends Command
+final class PixieMigrateCommand
 {
     private DataPaths $dataPaths;
 
@@ -30,7 +30,6 @@ final class PixieMigrateCommand extends Command
         private readonly SqlViewService $sqlViewService,
         private readonly LoggerInterface $logger,
     ) {
-        parent::__construct();
     }
 
     #[Required]

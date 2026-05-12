@@ -24,7 +24,7 @@ use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 use Symfony\Component\Workflow\Transition;
 
 #[AsCommand('pixie:iterate', 'Iterative over a pixie database, sending events"')]
-final class IterateCommand extends Command
+final class IterateCommand
 {
     private bool $initialized = false; // so the event listener can be called from outside the command
     private ProgressBar $progressBar;
@@ -38,7 +38,6 @@ final class IterateCommand extends Command
     )
     {
 
-        parent::__construct();
     }
 
     public function __invoke(
