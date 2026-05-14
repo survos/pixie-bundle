@@ -31,7 +31,8 @@
         "survos/babel-bundle": "^2.0",
         "survos/tabler-bundle": "^2.0",
         "survos/import-bundle": "^2.0",
-        "survos/data-bundle": "^2.0"
+        "survos/data-bundle": "^2.0",
+        "survos/data-contracts": "^2.0"
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest",
